@@ -123,6 +123,9 @@ Tenant
  └─< Stage
       └─< Grade
            └─< Group  (also FKs AcademicYear)
+           └─< Course (also FKs Subject)
+                └─< Chapter
+                     └─< Lesson
  └─< Subject
  └─< AuditLog
 ```
@@ -135,9 +138,8 @@ date ordering (`end_date > start_date`), and `on_delete=CASCADE` from
 child → parent so deleting a Tenant cleanly removes everything under it in
 one transaction — nothing to leak or orphan.
 
-Course → Chapter → Lesson, Content, Question Bank, Assessment, Attempt, and
-Result are **designed** (see §7 below and PROJECT_MEMORY.md §5) but not yet
-migrated — they're the next phase.
+Content, Question Bank, Assessment, Attempt, and Result are **designed**
+(see §7 below and PROJECT_MEMORY.md §5) but not yet migrated.
 
 ## 5. Backend architecture
 
@@ -220,6 +222,9 @@ GET  /api/v1/auth/me/          current user + tenant
 /api/v1/grades/
 /api/v1/groups/
 /api/v1/subjects/
+/api/v1/courses/
+/api/v1/chapters/
+/api/v1/lessons/
 ```
 
 Planned (unchanged from spec §67, not yet built): `/content`,

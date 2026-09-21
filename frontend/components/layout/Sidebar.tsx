@@ -14,11 +14,13 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
+    { href: "/courses", label: "الكورسات" },
   ],
   ADMIN: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
+    { href: "/courses", label: "الكورسات" },
   ],
   TEACHER: [
     { href: "/dashboard", label: "الرئيسية" },

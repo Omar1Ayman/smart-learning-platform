@@ -28,6 +28,33 @@ export const termSchema = z
 
 export type TermFormValues = z.infer<typeof termSchema>;
 
+export const subjectSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب").max(100),
+  code: z.string().max(20).optional(),
+});
+export type SubjectFormValues = z.infer<typeof subjectSchema>;
+
+export const stageSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب").max(100),
+  order: z.coerce.number().int().min(1).default(1),
+});
+export type StageFormValues = z.infer<typeof stageSchema>;
+
+export const gradeSchema = z.object({
+  stage: z.string().min(1, "اختر المرحلة"),
+  name: z.string().min(1, "الاسم مطلوب").max(100),
+  order: z.coerce.number().int().min(1).default(1),
+});
+export type GradeFormValues = z.infer<typeof gradeSchema>;
+
+export const courseSchema = z.object({
+  subject: z.string().min(1, "اختر المادة"),
+  grade: z.string().min(1, "اختر الصف"),
+  name: z.string().min(1, "اسم الكورس مطلوب").max(150),
+  description: z.string().optional(),
+});
+export type CourseFormValues = z.infer<typeof courseSchema>;
+
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),

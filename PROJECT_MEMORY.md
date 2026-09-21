@@ -1,8 +1,9 @@
 # PROJECT_MEMORY.md
 
 _Read this file first, every session — before touching code._
-_Last updated: 2026-09-20 — Roadmap position: end of Phase 3 (Identity &
-Tenancy), first slice of Phase 4 (Academic Core) also built._
+_Last updated: 2026-09-21 — Roadmap position: Phase 3 (Identity & Tenancy)
+done; Phase 4 (Academic Core) done through Course → Chapter → Lesson.
+Next up: Phase 5 (Teacher Assignment + Student Enrollment)._
 
 ## 1. Product vision
 
@@ -46,12 +47,18 @@ Tenant ──< User (role)
 Tenant ──< AcademicYear ──< Term
 Tenant ──< Stage ──< Grade ──< Group (also FK's AcademicYear)
 Tenant ──< Subject
+Tenant ──< Course (FK's Subject + Grade) ──< Chapter ──< Lesson
 Tenant ──< AuditLog
 ```
 
-**Designed, not yet built** (Phase 4 continuation → Phase 9):
+Course intentionally has **no `teacher` field** — see §14's "Course has no
+teacher field" decision below; that's `TeacherAssignment`'s job (Phase 5).
+Lesson intentionally has **no content/body field** — attaching PDFs,
+video, text, etc. at a flexible scope is Content's job (Phase 6); a
+Lesson today is just the slot Content will attach to.
+
+**Designed, not yet built** (Phase 5 → Phase 9):
 ```
-Course ──< Chapter ──< Lesson         (Course scoped to Subject + Grade)
 Content  (flexible scope: any of tenant/stage/grade/group/subject/
           course/chapter/lesson/year/term — spec §27)
 QuestionBank ──< Question             (PENDING → APPROVED/REJECTED workflow)
@@ -96,10 +103,15 @@ for server state, Zustand for auth state (access token kept in memory only,
 never `localStorage` — an XSS bug should not be able to read a live
 credential off disk). React Hook Form + Zod for every form. The
 `SmartSelect` + `QuickCreateModal` pattern (spec §16/17) is implemented and
-demonstrated end-to-end on the Terms page (pick or inline-create an
-Academic Year without leaving the Term form) — reuse these two components
-for every future "pick or create a related record" flow instead of building
-a new modal each time.
+demonstrated end-to-end, including a **three-level nested chain** on the
+Courses page: creating a Course can quick-create a Grade without leaving
+the Course form, and that Grade's own quick-create can quick-create a
+Stage without leaving *its* form — every level auto-selects into its
+parent and preserves what was already typed above it, exactly as spec
+§16 asks. Reuse `SmartSelect`/`QuickCreateModal` for every future
+"pick or create a related record" flow instead of building a new modal
+each time; don't rebuild the chain pattern from scratch either — copy
+`CourseForm`/`GradeForm`'s shape.
 
 ## 9. Security model
 
@@ -121,35 +133,47 @@ human review queue. Never an automatic cheating verdict (spec §46).
 `/api/v1/...`, versioned from day one. Current + planned endpoint list:
 `API.md`.
 
-## 12. Completed features (Phase 0–3, plus first slice of Phase 4)
+## 12. Completed features (Phase 0–4)
 
 - Tenant signup (`Tenant` + `OWNER` `User` created atomically)
 - JWT login / cookie-based refresh / `me` endpoint
-- Full tenant-isolation + role-permission enforcement chain, with passing
-  automated tests against real PostgreSQL:
+- Full tenant-isolation + role-permission enforcement chain, with **23
+  passing automated tests against real PostgreSQL**:
   - cross-tenant read of another tenant's object → 403/404, and it never
     appears in a list either
   - a client-supplied `tenant` field on create is silently ignored; the
     object is created under the *caller's* real tenant
-  - a `STUDENT` cannot create an `AcademicYear` (role check)
-- Academic Year / Term / Stage / Grade / Group / Subject: models with
-  tenant-scoped constraints, full CRUD API, tenant-scoped serializers
-- Frontend: RTL shell (sidebar + topbar), login flow with silent refresh on
-  load, Academic Years page (list + create), Terms page demonstrating
-  SmartSelect + QuickCreateModal
-- `docker-compose.yml` (Postgres + backend + frontend) for local dev, CI
-  workflow skeleton (lint + test + build)
+  - a `STUDENT` cannot create an `AcademicYear` or a `Lesson` (role check)
+  - a `Course`/`Term` cannot reference another tenant's `Subject`/`Grade`/
+    `AcademicYear` (relationship-permission layer)
+- Academic Year / Term / Stage / Grade / Group / Subject / **Course /
+  Chapter / Lesson**: models with tenant-scoped constraints, full CRUD
+  API, tenant-scoped serializers
+- Backend fully lint-clean (`flake8`, `black`), zero pending migrations
+- Frontend: RTL shell (sidebar + topbar), login/signup flow with silent
+  refresh on load, Academic Years + Terms + **Courses** pages, the latter
+  demonstrating a **three-level SmartSelect/QuickCreateModal chain**
+  (Course → Grade → Stage, each auto-selecting into its parent)
+- Frontend fully lint-clean (`eslint` flat config), builds cleanly,
+  **`npm audit` = 0 vulnerabilities** (see §14 — the original dependency
+  pins had known CVEs and were upgraded before anything shipped)
+- `docker-compose.yml` (Postgres + backend + frontend) for local dev,
+  multi-stage Dockerfiles (frontend uses Next's `standalone` output), CI
+  workflow (lint + test + build for both sides) — **the Docker build
+  itself has not been run** in the environment this was built in (no
+  Docker Hub network access there); verify `docker compose up --build`
+  the first time you run this for real
 
 ## 13. Pending features (rest of the roadmap)
 
-Course/Chapter/Lesson, Content (flexible scoping), Question Bank + review
-workflow, Assessment Builder (6-step wizard) + targeting + scheduling +
-randomization, Exam engine (attempts/timer/autosave/server-side scoring),
-Anti-cheat event tracking + suspicion dashboard, Teacher assignments +
-Student enrollment + Promotion transaction, all three role dashboards
-(beyond the current placeholder shell), Reports, rate limiting, full audit
-coverage (currently 2 of ~10 listed actions), onboarding wizard, tenant
-branding UI, bulk operations, accessibility pass, production deployment.
+Content (flexible scoping), Question Bank + review workflow, Assessment
+Builder (6-step wizard) + targeting + scheduling + randomization, Exam
+engine (attempts/timer/autosave/server-side scoring), Anti-cheat event
+tracking + suspicion dashboard, Teacher assignments + Student enrollment +
+Promotion transaction, all three role dashboards (beyond the current
+placeholder shell), Reports, rate limiting, full audit coverage (currently
+2 of ~10 listed actions), onboarding wizard, tenant branding UI, bulk
+operations, accessibility pass, production deployment.
 
 ## 14. Architecture decisions log
 
@@ -172,6 +196,18 @@ branding UI, bulk operations, accessibility pass, production deployment.
 - **2026-09-20 — UUIDv4 primary keys tenant-wide**, not sequential
   integers, purely to avoid leaking counts/order — explicitly documented as
   *not* a substitute for the real authorization chain (spec §98).
+- **2026-09-21 — Course has no `teacher` field.** Spec §22 is explicit
+  that Course → Teacher must not be the only modeling path (one teacher
+  teaches many groups; more than one teacher can share a subject). "Who
+  teaches this" is `TeacherAssignment`'s job (Phase 5), not a Course
+  column — adding one now would mean migrating it away later.
+- **2026-09-21 — Frontend dependency versions bumped off their original
+  pins before shipping** (Next.js 14.2.15 → 16.3.5, ESLint 8 → 9 with a
+  native flat config, axios/postcss patched) after `npm audit` showed
+  known CVEs, some critical, unfixed at the original pins. Confirmed
+  `npm audit` = 0 findings and a clean `npm run build` before treating
+  the frontend as done — "security first" (spec §38) applies to picking
+  dependency versions, not just to code written from scratch.
 
 ## 15. Known limitations (today, stated plainly)
 
@@ -190,9 +226,13 @@ branding UI, bulk operations, accessibility pass, production deployment.
 
 ## 16. Next steps
 
-Pick up at **Phase 4 continuation**: Course → Chapter → Lesson models
-(scoped to Subject + Grade, following the exact same
-model → tenant-scoped-serializer → tested-viewset → frontend-page recipe
-used for Academic Year/Term above), then Phase 5 (Teacher Assignment +
-Student Enrollment — required before per-teacher scoping in §15 above can
-be closed out). Say "كمل" / "continue" to proceed with the next phase.
+Pick up at **Phase 5 — People & Relationships**: `TeacherAssignment`
+(Teacher × Stage/Grade/Group/Subject/Course, spec §22) and `Enrollment`
+(Student × AcademicYear × Grade × Group, history-preserving, spec §23),
+then the `Promotion` transaction (preview → validate → confirm → atomic,
+spec §25). Once `TeacherAssignment` exists, close out the known limitation
+in §15 above (Teacher read access is currently tenant-wide, not scoped to
+assignment). Same recipe as every phase so far: model + tenant-scoped
+constraints → tenant-scoped serializer → tested viewset (isolation +
+role + relationship tests, run against real Postgres) → frontend page.
+Say "كمل" / "continue" to proceed.

@@ -47,9 +47,14 @@ request field — it's always the caller's own tenant.
 | `/api/v1/grades/`                  | Grade         | `stage`, `name`, `order` |
 | `/api/v1/groups/`                  | Group         | `grade`, `academic_year`, `name`, `capacity` |
 | `/api/v1/subjects/`                | Subject       | `name`, `code` |
+| `/api/v1/courses/`                 | Course        | `subject` (scoped), `grade` (scoped), `name`, `description`, `is_active` |
+| `/api/v1/chapters/`                | Chapter       | `course` (scoped), `name`, `order` (unique per course) |
+| `/api/v1/lessons/`                 | Lesson        | `chapter` (scoped), `name`, `order` (unique per chapter) |
+
+`Course` deliberately has no `teacher` field — see PROJECT_MEMORY.md §14
+for why that's TeacherAssignment's job (Phase 5), not Course's.
 
 ## Planned (not built yet — see PROJECT_MEMORY.md roadmap)
 
-`/courses`, `/chapters`, `/lessons`, `/content`, `/question-banks`,
-`/questions`, `/assessments`, `/attempts`, `/results`, `/reports`,
-`/audit`, `/security`.
+`/content`, `/question-banks`, `/questions`, `/assessments`, `/attempts`,
+`/results`, `/reports`, `/audit`, `/security`.

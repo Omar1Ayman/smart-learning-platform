@@ -10,7 +10,7 @@ it is set server-side only (apps/common/views.py TenantScopedViewSet).
 
 from rest_framework import serializers
 
-from .models import AcademicYear, Grade, Group, Stage, Subject, Term
+from .models import AcademicYear, Chapter, Course, Grade, Group, Lesson, Stage, Subject, Term
 
 
 class _TenantScopedSerializer(serializers.ModelSerializer):
@@ -85,4 +85,40 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = ["id", "name", "code", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class CourseSerializer(_TenantScopedSerializer):
+    tenant_scoped_fields = {"subject": Subject, "grade": Grade}
+
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "subject",
+            "grade",
+            "name",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ChapterSerializer(_TenantScopedSerializer):
+    tenant_scoped_fields = {"course": Course}
+
+    class Meta:
+        model = Chapter
+        fields = ["id", "course", "name", "order", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class LessonSerializer(_TenantScopedSerializer):
+    tenant_scoped_fields = {"chapter": Chapter}
+
+    class Meta:
+        model = Lesson
+        fields = ["id", "chapter", "name", "order", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
