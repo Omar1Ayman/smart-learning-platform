@@ -80,6 +80,14 @@ npm install
 npm run dev
 ```
 
+> The layout loads two Arabic Google Fonts via `next/font/google`, which
+> fetches them at build time — this needs normal outbound internet access
+> to `fonts.googleapis.com`/`fonts.gstatic.com` (true of any
+> `next/font/google` usage, not specific to this project). If you're
+> building behind a restrictive proxy/firewall that blocks it, either
+> allow those two hosts or switch `app/layout.tsx` to `next/font/local`
+> with self-hosted font files.
+
 ## First run: creating your first tenant
 
 There's no seed data — the platform is self-serve by design (point 89/90 of
