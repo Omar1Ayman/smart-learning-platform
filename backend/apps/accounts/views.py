@@ -4,9 +4,10 @@ frontend's JS can read — it is set as an httpOnly cookie here and read
 back from the cookie on refresh/logout. See SECURITY.md #2 (Session
 attacks) and ARCHITECTURE.md #6 for why.
 """
+
 from django.conf import settings
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError

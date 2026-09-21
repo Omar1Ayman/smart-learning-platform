@@ -7,6 +7,7 @@ choice for the field at all, so it fails the same way a made-up id would
 elsewhere. `tenant` itself is never a field on any of these serializers —
 it is set server-side only (apps/common/views.py TenantScopedViewSet).
 """
+
 from rest_framework import serializers
 
 from .models import AcademicYear, Grade, Group, Stage, Subject, Term
@@ -42,7 +43,16 @@ class TermSerializer(_TenantScopedSerializer):
 
     class Meta:
         model = Term
-        fields = ["id", "academic_year", "name", "start_date", "end_date", "order", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "academic_year",
+            "name",
+            "start_date",
+            "end_date",
+            "order",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
 

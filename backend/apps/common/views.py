@@ -4,6 +4,7 @@ questions, ...) inherits from. It is what makes tenant filtering the
 default rather than something each view has to remember — see
 ARCHITECTURE.md #2, steps 2-6.
 """
+
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 

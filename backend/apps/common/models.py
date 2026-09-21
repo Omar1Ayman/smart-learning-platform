@@ -7,6 +7,7 @@ scope a query by tenant" require actively opting out rather than
 remembering to opt in. See ARCHITECTURE.md #2 for the full request
 lifecycle this participates in.
 """
+
 import uuid
 
 from django.db import models

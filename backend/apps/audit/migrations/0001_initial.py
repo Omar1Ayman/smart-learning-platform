@@ -11,27 +11,52 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tenants', '0001_initial'),
+        ("tenants", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AuditLog',
+            name="AuditLog",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('action', models.CharField(max_length=100)),
-                ('object_type', models.CharField(blank=True, default='', max_length=100)),
-                ('object_id', models.CharField(blank=True, default='', max_length=64)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_logs', to=settings.AUTH_USER_MODEL)),
-                ('tenant', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='audit_logs', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("action", models.CharField(max_length=100)),
+                ("object_type", models.CharField(blank=True, default="", max_length=100)),
+                ("object_id", models.CharField(blank=True, default="", max_length=64)),
+                ("metadata", models.JSONField(blank=True, default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="audit_logs",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="audit_logs",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'audit_log',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['tenant', 'action', '-created_at'], name='audit_log_tenant__c92498_idx')],
+                "db_table": "audit_log",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["tenant", "action", "-created_at"], name="audit_log_tenant__c92498_idx"
+                    )
+                ],
             },
         ),
     ]

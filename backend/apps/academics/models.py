@@ -6,6 +6,7 @@ this slice stays reviewable and testable on its own, per spec #86
 (Understand -> Design -> Implement -> Test -> Review -> Document, one
 slice at a time, not all of it unreviewed at once).
 """
+
 from django.db import models
 
 from apps.common.models import TenantScopedModel
@@ -22,7 +23,9 @@ class AcademicYear(TenantScopedModel):
         ordering = ["-start_date"]
         constraints = [
             models.UniqueConstraint(fields=["tenant", "name"], name="uniq_academic_year_name_per_tenant"),
-            models.CheckConstraint(condition=models.Q(end_date__gt=models.F("start_date")), name="academic_year_end_after_start"),
+            models.CheckConstraint(
+                condition=models.Q(end_date__gt=models.F("start_date")), name="academic_year_end_after_start"
+            ),
         ]
 
     def __str__(self):
@@ -41,7 +44,9 @@ class Term(TenantScopedModel):
         ordering = ["academic_year", "order"]
         constraints = [
             models.UniqueConstraint(fields=["academic_year", "name"], name="uniq_term_name_per_year"),
-            models.CheckConstraint(condition=models.Q(end_date__gt=models.F("start_date")), name="term_end_after_start"),
+            models.CheckConstraint(
+                condition=models.Q(end_date__gt=models.F("start_date")), name="term_end_after_start"
+            ),
         ]
 
     def __str__(self):
@@ -89,7 +94,9 @@ class Group(TenantScopedModel):
         db_table = "academics_group"
         ordering = ["grade", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["grade", "academic_year", "name"], name="uniq_group_name_per_grade_year"),
+            models.UniqueConstraint(
+                fields=["grade", "academic_year", "name"], name="uniq_group_name_per_grade_year"
+            ),
         ]
 
     def __str__(self):

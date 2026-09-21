@@ -3,7 +3,7 @@ import pytest
 from apps.accounts.models import User
 
 from .conftest import login_as
-from .factories import DEFAULT_TEST_PASSWORD, UserFactory
+from .factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -11,7 +11,11 @@ pytestmark = pytest.mark.django_db
 def test_signup_creates_tenant_and_owner_and_returns_tokens(api_client):
     resp = api_client.post(
         "/api/v1/auth/signup/",
-        {"tenant_name": "Future Center", "owner_email": "owner@future.test", "owner_password": "StrongPass123!"},
+        {
+            "tenant_name": "Future Center",
+            "owner_email": "owner@future.test",
+            "owner_password": "StrongPass123!",
+        },
         format="json",
     )
     assert resp.status_code == 201, resp.data
@@ -29,7 +33,11 @@ def test_signup_rejects_duplicate_email(api_client):
     UserFactory(email="dupe@example.test")
     resp = api_client.post(
         "/api/v1/auth/signup/",
-        {"tenant_name": "Another Center", "owner_email": "dupe@example.test", "owner_password": "StrongPass123!"},
+        {
+            "tenant_name": "Another Center",
+            "owner_email": "dupe@example.test",
+            "owner_password": "StrongPass123!",
+        },
         format="json",
     )
     assert resp.status_code == 400

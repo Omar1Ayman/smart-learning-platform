@@ -6,6 +6,7 @@ README.md), not sqlite, because the constraints being tested
 (UniqueConstraint scoped per tenant, CheckConstraint) are exactly the kind
 of thing that can behave differently across engines.
 """
+
 import pytest
 
 from apps.academics.models import AcademicYear

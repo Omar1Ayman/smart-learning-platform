@@ -10,142 +10,238 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tenants', '0001_initial'),
+        ("tenants", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AcademicYear',
+            name="AcademicYear",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=50)),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField()),
-                ('is_active', models.BooleanField(default=False)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=50)),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField()),
+                ("is_active", models.BooleanField(default=False)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_year',
-                'ordering': ['-start_date'],
+                "db_table": "academics_year",
+                "ordering": ["-start_date"],
             },
         ),
         migrations.CreateModel(
-            name='Grade',
+            name="Grade",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('order', models.PositiveSmallIntegerField(default=1)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("order", models.PositiveSmallIntegerField(default=1)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_grade',
-                'ordering': ['stage', 'order'],
+                "db_table": "academics_grade",
+                "ordering": ["stage", "order"],
             },
         ),
         migrations.CreateModel(
-            name='Group',
+            name="Group",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('capacity', models.PositiveIntegerField(blank=True, null=True)),
-                ('academic_year', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='groups', to='academics.academicyear')),
-                ('grade', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='groups', to='academics.grade')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("capacity", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "academic_year",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="groups",
+                        to="academics.academicyear",
+                    ),
+                ),
+                (
+                    "grade",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="groups",
+                        to="academics.grade",
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_group',
-                'ordering': ['grade', 'name'],
+                "db_table": "academics_group",
+                "ordering": ["grade", "name"],
             },
         ),
         migrations.CreateModel(
-            name='Stage',
+            name="Stage",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('order', models.PositiveSmallIntegerField(default=1)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("order", models.PositiveSmallIntegerField(default=1)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_stage',
-                'ordering': ['order', 'name'],
+                "db_table": "academics_stage",
+                "ordering": ["order", "name"],
             },
         ),
         migrations.AddField(
-            model_name='grade',
-            name='stage',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='grades', to='academics.stage'),
+            model_name="grade",
+            name="stage",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, related_name="grades", to="academics.stage"
+            ),
         ),
         migrations.CreateModel(
-            name='Subject',
+            name="Subject",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('code', models.CharField(blank=True, default='', max_length=20)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                ("code", models.CharField(blank=True, default="", max_length=20)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_subject',
-                'ordering': ['name'],
+                "db_table": "academics_subject",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Term',
+            name="Term",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=50)),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField()),
-                ('order', models.PositiveSmallIntegerField(default=1)),
-                ('academic_year', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='terms', to='academics.academicyear')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(class)ss', to='tenants.tenant')),
+                (
+                    "id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=50)),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField()),
+                ("order", models.PositiveSmallIntegerField(default=1)),
+                (
+                    "academic_year",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="terms",
+                        to="academics.academicyear",
+                    ),
+                ),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(class)ss",
+                        to="tenants.tenant",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'academics_term',
-                'ordering': ['academic_year', 'order'],
+                "db_table": "academics_term",
+                "ordering": ["academic_year", "order"],
             },
         ),
         migrations.AddConstraint(
-            model_name='academicyear',
-            constraint=models.UniqueConstraint(fields=('tenant', 'name'), name='uniq_academic_year_name_per_tenant'),
+            model_name="academicyear",
+            constraint=models.UniqueConstraint(
+                fields=("tenant", "name"), name="uniq_academic_year_name_per_tenant"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='academicyear',
-            constraint=models.CheckConstraint(condition=models.Q(('end_date__gt', models.F('start_date'))), name='academic_year_end_after_start'),
+            model_name="academicyear",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("end_date__gt", models.F("start_date"))),
+                name="academic_year_end_after_start",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='group',
-            constraint=models.UniqueConstraint(fields=('grade', 'academic_year', 'name'), name='uniq_group_name_per_grade_year'),
+            model_name="group",
+            constraint=models.UniqueConstraint(
+                fields=("grade", "academic_year", "name"), name="uniq_group_name_per_grade_year"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='stage',
-            constraint=models.UniqueConstraint(fields=('tenant', 'name'), name='uniq_stage_name_per_tenant'),
+            model_name="stage",
+            constraint=models.UniqueConstraint(fields=("tenant", "name"), name="uniq_stage_name_per_tenant"),
         ),
         migrations.AddConstraint(
-            model_name='grade',
-            constraint=models.UniqueConstraint(fields=('stage', 'name'), name='uniq_grade_name_per_stage'),
+            model_name="grade",
+            constraint=models.UniqueConstraint(fields=("stage", "name"), name="uniq_grade_name_per_stage"),
         ),
         migrations.AddConstraint(
-            model_name='subject',
-            constraint=models.UniqueConstraint(fields=('tenant', 'name'), name='uniq_subject_name_per_tenant'),
+            model_name="subject",
+            constraint=models.UniqueConstraint(
+                fields=("tenant", "name"), name="uniq_subject_name_per_tenant"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='term',
-            constraint=models.UniqueConstraint(fields=('academic_year', 'name'), name='uniq_term_name_per_year'),
+            model_name="term",
+            constraint=models.UniqueConstraint(
+                fields=("academic_year", "name"), name="uniq_term_name_per_year"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='term',
-            constraint=models.CheckConstraint(condition=models.Q(('end_date__gt', models.F('start_date'))), name='term_end_after_start'),
+            model_name="term",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("end_date__gt", models.F("start_date"))), name="term_end_after_start"
+            ),
         ),
     ]
