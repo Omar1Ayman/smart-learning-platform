@@ -6,7 +6,7 @@ attacks) and ARCHITECTURE.md #6 for why.
 """
 
 from django.conf import settings
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,7 +14,11 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .serializers import MeSerializer
+from apps.common.mixins import TenantContextMixin
+from apps.common.permissions import IsAdminForWriteActions, IsSameTenantObject, IsTenantMember
+
+from .models import User
+from .serializers import MeSerializer, UserCreateSerializer, UserSerializer
 from .tokens import TenantTokenObtainPairSerializer
 
 
@@ -93,3 +97,23 @@ class MeView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
+    """/api/v1/users/ — Owner/Admin manage Teacher/Student/Admin accounts
+    for their own tenant. Not built on TenantScopedViewSet directly:
+    User can't inherit TenantScopedModel (field collisions with
+    AbstractUser — see accounts/models.py), so tenant scoping is
+    re-implemented here the same way, by hand, against
+    UserManager.for_tenant()."""
+
+    permission_classes = [IsAuthenticated, IsTenantMember, IsSameTenantObject, IsAdminForWriteActions]
+    queryset = User.objects.none()  # get_queryset() below is what's actually used; this is only so
+    # DRF's router/filter-backend introspection has a model to point at.
+    filterset_fields = ["role", "is_active"]
+
+    def get_queryset(self):
+        return User.objects.for_tenant(self.request.tenant).order_by("email")
+
+    def get_serializer_class(self):
+        return UserCreateSerializer if self.action == "create" else UserSerializer

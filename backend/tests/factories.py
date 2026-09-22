@@ -1,8 +1,9 @@
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.academics.models import AcademicYear, Chapter, Course, Grade, Stage, Subject
+from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject
 from apps.accounts.models import User
+from apps.people.models import Enrollment, TeacherAssignment
 from apps.tenants.models import Tenant
 
 DEFAULT_TEST_PASSWORD = "TestPass123!"
@@ -91,3 +92,67 @@ class ChapterFactory(DjangoModelFactory):
     course = factory.SubFactory(CourseFactory)
     name = factory.Sequence(lambda n: f"Chapter {n}")
     order = factory.Sequence(lambda n: n + 1)
+
+
+class TeacherUserFactory(DjangoModelFactory):
+    class Meta:
+        model = User
+        skip_postgeneration_save = True
+
+    email = factory.Sequence(lambda n: f"teacher{n}@example.test")
+    tenant = factory.SubFactory(TenantFactory)
+    role = User.Role.TEACHER
+    is_active = True
+
+    @factory.post_generation
+    def password(self, create, extracted, **kwargs):
+        self.set_password(extracted or DEFAULT_TEST_PASSWORD)
+        if create:
+            self.save()
+
+
+class StudentUserFactory(DjangoModelFactory):
+    class Meta:
+        model = User
+        skip_postgeneration_save = True
+
+    email = factory.Sequence(lambda n: f"student{n}@example.test")
+    tenant = factory.SubFactory(TenantFactory)
+    role = User.Role.STUDENT
+    is_active = True
+
+    @factory.post_generation
+    def password(self, create, extracted, **kwargs):
+        self.set_password(extracted or DEFAULT_TEST_PASSWORD)
+        if create:
+            self.save()
+
+
+class GroupFactory(DjangoModelFactory):
+    class Meta:
+        model = Group
+
+    grade = factory.SubFactory(GradeFactory)
+    tenant = factory.SelfAttribute("grade.tenant")
+    academic_year = factory.LazyAttribute(lambda o: AcademicYearFactory(tenant=o.grade.tenant))
+    name = factory.Sequence(lambda n: f"Group {n}")
+
+
+class TeacherAssignmentFactory(DjangoModelFactory):
+    class Meta:
+        model = TeacherAssignment
+        skip_postgeneration_save = True
+
+    course = factory.SubFactory(CourseFactory)
+    tenant = factory.SelfAttribute("course.tenant")
+    teacher = factory.LazyAttribute(lambda o: TeacherUserFactory(tenant=o.course.tenant))
+
+
+class EnrollmentFactory(DjangoModelFactory):
+    class Meta:
+        model = Enrollment
+
+    group = factory.SubFactory(GroupFactory)
+    tenant = factory.SelfAttribute("group.tenant")
+    academic_year = factory.SelfAttribute("group.academic_year")
+    student = factory.LazyAttribute(lambda o: StudentUserFactory(tenant=o.group.tenant))

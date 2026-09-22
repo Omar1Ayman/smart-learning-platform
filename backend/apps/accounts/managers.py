@@ -27,3 +27,10 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
         return self._create_user(email, password, **extra_fields)
+
+    def for_tenant(self, tenant):
+        """Parity with TenantScopedManager.for_tenant() (apps/common/models.py)
+        even though User can't inherit TenantScopedModel — AbstractUser
+        already defines fields that would collide with it (see models.py)."""
+        tenant_id = getattr(tenant, "id", tenant)
+        return self.filter(tenant_id=tenant_id)

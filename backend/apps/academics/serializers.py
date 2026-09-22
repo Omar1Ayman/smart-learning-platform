@@ -10,25 +10,9 @@ it is set server-side only (apps/common/views.py TenantScopedViewSet).
 
 from rest_framework import serializers
 
+from apps.common.serializers import TenantScopedModelSerializer
+
 from .models import AcademicYear, Chapter, Course, Grade, Group, Lesson, Stage, Subject, Term
-
-
-class _TenantScopedSerializer(serializers.ModelSerializer):
-    """Base that rescopes any PrimaryKeyRelatedField named in
-    `tenant_scoped_fields` to the requesting tenant."""
-
-    tenant_scoped_fields: dict = {}  # field_name -> model class
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        request = self.context.get("request")
-        tenant = getattr(request, "tenant", None) if request else None
-        for field_name, model in self.tenant_scoped_fields.items():
-            if field_name in self.fields:
-                if tenant is not None:
-                    self.fields[field_name].queryset = model.objects.for_tenant(tenant)
-                else:
-                    self.fields[field_name].queryset = model.objects.none()
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):
@@ -38,7 +22,7 @@ class AcademicYearSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class TermSerializer(_TenantScopedSerializer):
+class TermSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"academic_year": AcademicYear}
 
     class Meta:
@@ -63,7 +47,7 @@ class StageSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class GradeSerializer(_TenantScopedSerializer):
+class GradeSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"stage": Stage}
 
     class Meta:
@@ -72,7 +56,7 @@ class GradeSerializer(_TenantScopedSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class GroupSerializer(_TenantScopedSerializer):
+class GroupSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"grade": Grade, "academic_year": AcademicYear}
 
     class Meta:
@@ -88,7 +72,7 @@ class SubjectSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class CourseSerializer(_TenantScopedSerializer):
+class CourseSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"subject": Subject, "grade": Grade}
 
     class Meta:
@@ -106,7 +90,7 @@ class CourseSerializer(_TenantScopedSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class ChapterSerializer(_TenantScopedSerializer):
+class ChapterSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"course": Course}
 
     class Meta:
@@ -115,7 +99,7 @@ class ChapterSerializer(_TenantScopedSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class LessonSerializer(_TenantScopedSerializer):
+class LessonSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"chapter": Chapter}
 
     class Meta:

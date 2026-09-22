@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.tenants",
     "apps.accounts",
     "apps.academics",
+    "apps.people",
     "apps.audit",
 ]
 
