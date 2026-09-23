@@ -1,9 +1,9 @@
 # PROJECT_MEMORY.md
 
 _Read this file first, every session — before touching code._
-_Last updated: 2026-09-21 — Roadmap position: Phase 3 (Identity & Tenancy)
-done; Phase 4 (Academic Core) done through Course → Chapter → Lesson.
-Next up: Phase 5 (Teacher Assignment + Student Enrollment)._
+_Last updated: 2026-09-21 — Roadmap position: Phase 5 (People &
+Relationships) done — TeacherAssignment, Enrollment with role-scoped
+visibility, Promotion. Next up: Phase 6 (Content)._
 
 ## 1. Product vision
 
@@ -48,16 +48,25 @@ Tenant ──< AcademicYear ──< Term
 Tenant ──< Stage ──< Grade ──< Group (also FK's AcademicYear)
 Tenant ──< Subject
 Tenant ──< Course (FK's Subject + Grade) ──< Chapter ──< Lesson
+Tenant ──< TeacherAssignment (Teacher × Course × Group[] — empty Group[] = whole grade)
+Tenant ──< Enrollment (Student × Group, denormalized AcademicYear — one per student per year)
 Tenant ──< AuditLog
 ```
 
-Course intentionally has **no `teacher` field** — see §14's "Course has no
-teacher field" decision below; that's `TeacherAssignment`'s job (Phase 5).
-Lesson intentionally has **no content/body field** — attaching PDFs,
-video, text, etc. at a flexible scope is Content's job (Phase 6); a
-Lesson today is just the slot Content will attach to.
+Course intentionally has **no `teacher` field** — that's what
+`TeacherAssignment` is for (see §14). Lesson intentionally has **no
+content/body field** — attaching PDFs, video, text, etc. at a flexible
+scope is Content's job (Phase 6); a Lesson today is just the slot Content
+will attach to. `TeacherAssignment` is keyed on `Course` (which already
+encodes Subject + Grade) plus an optional `groups` M2M to narrow it,
+rather than a pile of independently-nullable Stage/Grade/Group/Subject
+fields — see §14 for why. `Enrollment.academic_year` is a **deliberate
+denormalization** of `group.academic_year`, kept in sync server-side only
+(never client-writable), purely so "one enrollment per student per year"
+can be a real DB constraint — Django can't express uniqueness across a
+related model's field directly.
 
-**Designed, not yet built** (Phase 5 → Phase 9):
+**Designed, not yet built** (Phase 6 → Phase 9):
 ```
 Content  (flexible scope: any of tenant/stage/grade/group/subject/
           course/chapter/lesson/year/term — spec §27)
@@ -66,14 +75,13 @@ Assessment  (independent targeting: tenant/stage/grade/group/students;
              independent of Course/QuestionBank — spec §33)
   ──< ExamAttempt ──< Answer
   ──< Result
-TeacherAssignment  (Teacher × Stage/Grade/Group/Subject/Course)
-Enrollment  (Student × AcademicYear × Grade × Group — history-preserving,
-             spec §23; Promotion is a transaction over this, spec §25)
 ```
 
 Relationships are deliberately **not** assumed one-to-one anywhere (spec
-§18) — e.g. a Teacher can have many `TeacherAssignment` rows, a Student's
-`Enrollment` history spans multiple `AcademicYear`s.
+§18) — e.g. a Teacher can have many `TeacherAssignment` rows (one per
+Course, each optionally narrowed to specific Groups), a Student's
+`Enrollment` history spans multiple `AcademicYear`s (one row per year,
+never overwritten — Promotion always inserts a new row for a new year).
 
 ## 6. Database architecture
 
@@ -89,11 +97,17 @@ parent. No business rule relies on frontend validation alone (spec §4).
 ## 7. Backend architecture
 
 Django 5 + DRF, modular monolith (`backend/apps/{common,tenants,accounts,
-academics,audit}` today). Full layout and the request-lifecycle enforcement
-chain: `ARCHITECTURE.md` §2/§5. Auth: SimpleJWT, access token short-lived
-(30 min, returned in the JSON body), refresh token (7 days, rotated on use,
-blacklisted after rotation, delivered only as an `httpOnly`/`Secure`/
-`SameSite=Strict` cookie scoped to `/api/v1/auth/refresh/`).
+academics,people,audit}` today — `people` holds `TeacherAssignment` and
+`Enrollment`, split from `academics` since it's about people-to-structure
+relationships, not the structure itself). Full layout and the
+request-lifecycle enforcement chain: `ARCHITECTURE.md` §2/§5. Auth:
+SimpleJWT, access token short-lived (30 min, returned in the JSON body),
+refresh token (7 days, rotated on use, blacklisted after rotation,
+delivered only as an `httpOnly`/`Secure`/`SameSite=Strict` cookie scoped
+to `/api/v1/auth/refresh/`). The tenant-scoped-relational-field pattern
+(`apps/academics/serializers.py`'s old `_TenantScopedSerializer`) was
+promoted to `apps/common/serializers.py` as `TenantScopedModelSerializer`
+once `people` needed it too — one shared implementation, not a copy per app.
 
 ## 8. Frontend architecture
 
@@ -101,25 +115,27 @@ Next.js App Router + TypeScript + Tailwind. RTL (`dir="rtl" lang="ar"`) on
 `<html>` from the first commit — see `ARCHITECTURE.md` §6. TanStack Query
 for server state, Zustand for auth state (access token kept in memory only,
 never `localStorage` — an XSS bug should not be able to read a live
-credential off disk). React Hook Form + Zod for every form. The
-`SmartSelect` + `QuickCreateModal` pattern (spec §16/17) is implemented and
-demonstrated end-to-end, including a **three-level nested chain** on the
-Courses page: creating a Course can quick-create a Grade without leaving
-the Course form, and that Grade's own quick-create can quick-create a
-Stage without leaving *its* form — every level auto-selects into its
-parent and preserves what was already typed above it, exactly as spec
-§16 asks. Reuse `SmartSelect`/`QuickCreateModal` for every future
+credential off disk). React Hook Form + Zod for every form (use `useWatch`,
+not the `watch()` method, for anything read reactively — `watch()` opts
+the component out of Next's React Compiler memoization; ESLint will flag
+it). The `SmartSelect` + `QuickCreateModal` pattern (spec §16/17) is used
+throughout, including a **three-level nested chain** (Course → Grade →
+Stage on the Courses page) and **cross-domain nesting** — the Teacher
+Assignment and Enrollment forms quick-create a `User` (Teacher/Student)
+inline via the same `UserForm`, just with a locked `fixedRole` prop, so
+"there's no teacher yet" never blocks the flow of assigning one. Reuse
+`SmartSelect`/`QuickCreateModal`/this chaining shape for every future
 "pick or create a related record" flow instead of building a new modal
-each time; don't rebuild the chain pattern from scratch either — copy
-`CourseForm`/`GradeForm`'s shape.
+each time.
 
 ## 9. Security model
 
 Full threat-by-threat status: `SECURITY.md`. Headline decisions: UUIDs are
 never authorization; `tenant`/`role` are never client-writable fields on
 any serializer; refresh tokens are `httpOnly`; tracebacks never reach an API
-response. **Known gap, highest priority for the next security pass:** login/
-signup/refresh are not yet rate-limited.
+response. Role-scoped *read* visibility (not just tenant isolation) is now
+real for Enrollment — see §12. **Known gap, highest priority for the next
+security pass:** login/signup/refresh are not yet rate-limited.
 
 ## 10. Anti-cheat architecture
 
@@ -133,47 +149,59 @@ human review queue. Never an automatic cheating verdict (spec §46).
 `/api/v1/...`, versioned from day one. Current + planned endpoint list:
 `API.md`.
 
-## 12. Completed features (Phase 0–4)
+## 12. Completed features (Phase 0–5)
 
-- Tenant signup (`Tenant` + `OWNER` `User` created atomically)
+- Tenant signup (`Tenant` + `OWNER` `User` created atomically); OWNER/ADMIN
+  can now create TEACHER/STUDENT/ADMIN accounts via `/api/v1/users/`
 - JWT login / cookie-based refresh / `me` endpoint
-- Full tenant-isolation + role-permission enforcement chain, with **23
-  passing automated tests against real PostgreSQL**:
-  - cross-tenant read of another tenant's object → 403/404, and it never
-    appears in a list either
-  - a client-supplied `tenant` field on create is silently ignored; the
-    object is created under the *caller's* real tenant
-  - a `STUDENT` cannot create an `AcademicYear` or a `Lesson` (role check)
-  - a `Course`/`Term` cannot reference another tenant's `Subject`/`Grade`/
-    `AcademicYear` (relationship-permission layer)
-- Academic Year / Term / Stage / Grade / Group / Subject / **Course /
-  Chapter / Lesson**: models with tenant-scoped constraints, full CRUD
-  API, tenant-scoped serializers
+- Full tenant-isolation + role-permission enforcement chain, with **47
+  passing automated tests against real PostgreSQL**, including:
+  - cross-tenant read of another tenant's object → 403/404, never in a list
+  - a client-supplied `tenant` field on create is silently ignored
+  - relationship-permission layer (a `Course`/`Term`/`TeacherAssignment`/
+    `Enrollment` can't reference another tenant's related object)
+  - **role-scoped read visibility on Enrollment** (spec §12/§13, not just
+    tenant isolation): OWNER/ADMIN see every enrollment; TEACHER sees only
+    students in groups they're assigned to (directly, or via a
+    whole-grade assignment); STUDENT sees only their own — and a Teacher
+    fetching an out-of-scope enrollment by direct ID gets 404, not 403,
+    because it's genuinely outside their queryset, the same mechanism
+    tenant isolation itself uses
+  - Promotion is atomic: one invalid item in a batch rolls back every
+    item, tested explicitly
+- Academic Year / Term / Stage / Grade / Group / Subject / Course /
+  Chapter / Lesson / **TeacherAssignment / Enrollment**: models with
+  tenant-scoped constraints, full CRUD API, tenant-scoped serializers
+- **Promotion** (`POST /api/v1/enrollments/promote/`): PROMOTE / REPEAT /
+  TRANSFER / GRADUATE, `dry_run` flag doubles as the "Preview" step (spec
+  §25) without duplicating validation logic, real transaction on confirm
 - Backend fully lint-clean (`flake8`, `black`), zero pending migrations
-- Frontend: RTL shell (sidebar + topbar), login/signup flow with silent
-  refresh on load, Academic Years + Terms + **Courses** pages, the latter
-  demonstrating a **three-level SmartSelect/QuickCreateModal chain**
-  (Course → Grade → Stage, each auto-selecting into its parent)
+- Frontend: RTL shell, login/signup flow with silent refresh, Academic
+  Years / Terms / Courses / **Team (user management) / Teacher
+  Assignments / Enrollments** pages. Enrollments page automatically
+  reflects the viewer's role-scoped visibility with zero special frontend
+  logic — it just renders whatever the backend returns.
 - Frontend fully lint-clean (`eslint` flat config), builds cleanly,
-  **`npm audit` = 0 vulnerabilities** (see §14 — the original dependency
-  pins had known CVEs and were upgraded before anything shipped)
-- `docker-compose.yml` (Postgres + backend + frontend) for local dev,
-  multi-stage Dockerfiles (frontend uses Next's `standalone` output), CI
-  workflow (lint + test + build for both sides) — **the Docker build
-  itself has not been run** in the environment this was built in (no
-  Docker Hub network access there); verify `docker compose up --build`
-  the first time you run this for real
+  `npm audit` = 0 vulnerabilities
+- `docker-compose.yml`, multi-stage Dockerfiles, CI workflow — **the
+  Docker build itself still has not been run** in the environment this
+  was built in (no Docker Hub network access there)
 
 ## 13. Pending features (rest of the roadmap)
 
 Content (flexible scoping), Question Bank + review workflow, Assessment
 Builder (6-step wizard) + targeting + scheduling + randomization, Exam
 engine (attempts/timer/autosave/server-side scoring), Anti-cheat event
-tracking + suspicion dashboard, Teacher assignments + Student enrollment +
-Promotion transaction, all three role dashboards (beyond the current
-placeholder shell), Reports, rate limiting, full audit coverage (currently
-2 of ~10 listed actions), onboarding wizard, tenant branding UI, bulk
-operations, accessibility pass, production deployment.
+tracking + suspicion dashboard, all three role dashboards (beyond the
+current placeholder shell — they should now surface real
+TeacherAssignment/Enrollment data), Reports, rate limiting, full audit
+coverage (currently 3 of ~10 listed actions — signup, academic-year
+create, promotion), onboarding wizard, tenant branding UI, bulk
+operations, accessibility pass, production deployment. **Promotion has no
+frontend UI yet** — it's a real, tested backend endpoint
+(`/api/v1/enrollments/promote/`) with no page calling it; building that
+multi-step wizard (pick source group → preview → assign actions per
+student → confirm) is a good Phase 6+ frontend task on its own.
 
 ## 14. Architecture decisions log
 
@@ -208,31 +236,66 @@ operations, accessibility pass, production deployment.
   `npm audit` = 0 findings and a clean `npm run build` before treating
   the frontend as done — "security first" (spec §38) applies to picking
   dependency versions, not just to code written from scratch.
+- **2026-09-21 — TeacherAssignment is keyed on Course + an optional
+  `groups` M2M**, not independently-nullable Stage/Grade/Group/Subject
+  fields. Course already encodes Subject + Grade; empty `groups` means
+  "the whole grade," a non-empty set narrows it. This covers every
+  combination spec §22 lists (one teacher, many groups/grades; many
+  teachers, one subject/group) without an ambiguous "which fields
+  actually matter for this row" shape.
+- **2026-09-21 — `Enrollment.academic_year` is a denormalized copy of
+  `group.academic_year`**, set server-side, never client-writable. Purely
+  so "one enrollment per student per year" can be a real
+  `UniqueConstraint` — Django can't constrain across a related model's
+  field directly. `EnrollmentSerializer.validate()` also checks this in
+  Python before hitting the DB, so a violation is a clean 400, not an
+  unhandled `IntegrityError` (worth remembering as a general pattern: a
+  DB `UniqueConstraint` is the real guarantee, but every serializer that
+  can hit one needs a matching `validate()` check, or the failure mode is
+  an ugly 500 instead of a normal validation error).
+- **2026-09-21 — Engineering note for future serializers:** a nested
+  `many=True` serializer field declared at class-body time (e.g. `items =
+  SomeItemSerializer(many=True)` inside another serializer) is
+  instantiated once, before any request exists — `self.context` is *not*
+  reliably available in that child's `__init__`. Do any
+  per-request/per-tenant queryset scoping in `to_internal_value()` (or
+  `validate()`) instead, which runs per-request after DRF has bound the
+  child to its parent. `PromotionItemSerializer`
+  (`apps/people/serializers.py`) hit this directly — its first version
+  scoped querysets in `__init__` and every promotion silently 400'd with
+  "object does not exist" until this was understood.
 
 ## 15. Known limitations (today, stated plainly)
 
 - No rate limiting yet.
-- Audit logging is a pattern demo (2 actions wired), not comprehensive.
+- Audit logging covers 3 of the ~10 actions spec §50 lists (tenant
+  signup, academic year create, promotion) — a pattern demo, not
+  comprehensive.
 - No file upload handling yet — nothing to evaluate for upload-specific
   risk yet, don't assume it's been hardened once it exists.
 - No independent security audit / penetration test. The automated tests
   cover the specific scenarios the spec names; that is necessary but not
   sufficient before a commercial launch.
-- Not deployed anywhere — `docker-compose.yml` is dev-only.
-- Teacher visibility is currently "any tenant member can read academic
-  structure" — the spec's tighter rule ("Teacher sees only their own
-  assignment scope," §12) needs `TeacherAssignment` to exist first
-  (Phase 5) before it can be enforced.
+- Not deployed anywhere — `docker-compose.yml` is dev-only, and its own
+  `docker build` has never actually been run (see §12).
+- Promotion has a real, tested backend endpoint and no frontend UI yet
+  (see §13).
+- TeacherAssignment's own list (not Enrollment's) is still readable by
+  any tenant member, not scoped to "only see your own assignments" —
+  lower priority than Enrollment's visibility since who-teaches-what is
+  administrative metadata, not student data, but worth tightening
+  alongside Reports/Dashboards later if it turns out to matter.
 
 ## 16. Next steps
 
-Pick up at **Phase 5 — People & Relationships**: `TeacherAssignment`
-(Teacher × Stage/Grade/Group/Subject/Course, spec §22) and `Enrollment`
-(Student × AcademicYear × Grade × Group, history-preserving, spec §23),
-then the `Promotion` transaction (preview → validate → confirm → atomic,
-spec §25). Once `TeacherAssignment` exists, close out the known limitation
-in §15 above (Teacher read access is currently tenant-wide, not scoped to
-assignment). Same recipe as every phase so far: model + tenant-scoped
-constraints → tenant-scoped serializer → tested viewset (isolation +
-role + relationship tests, run against real Postgres) → frontend page.
-Say "كمل" / "continue" to proceed.
+Pick up at **Phase 6 — Content**: a `Content` model attachable at a
+flexible scope (spec §27 — tenant/stage/grade/group/subject/course/
+chapter/lesson/year/term, but *not* every Content row needs every one of
+those FKs filled in) supporting PDF/video/image/document/link/text/book
+types. This is the first place file upload shows up in this codebase —
+budget real time for extension/MIME/size validation and
+private-vs-public storage, not just a model with a `FileField` (spec
+§78, and the "no file upload handling yet" limitation in §15 needs
+closing out carefully, not rushed). Same recipe as every phase so far:
+model + tenant-scoped constraints → tenant-scoped serializer → tested
+viewset → frontend page. Say "كمل" / "continue" to proceed.

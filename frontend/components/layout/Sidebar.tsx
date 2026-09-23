@@ -5,30 +5,35 @@ import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/auth/store";
 import type { Role } from "@/types";
 
-// Context-aware navigation per role — spec #55. Only Admin's nav reflects
-// what's actually built today; Teacher/Student items are named here per
-// spec (so the shell is right) and will light up as their pages land in
-// later phases (see PROJECT_MEMORY.md #13).
+// Context-aware navigation per role — spec #55.
 const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
   OWNER: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
+    { href: "/team", label: "الفريق" },
+    { href: "/teacher-assignments", label: "تكليفات المعلمين" },
+    { href: "/enrollments", label: "التسجيلات" },
   ],
   ADMIN: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
+    { href: "/team", label: "الفريق" },
+    { href: "/teacher-assignments", label: "تكليفات المعلمين" },
+    { href: "/enrollments", label: "التسجيلات" },
   ],
   TEACHER: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
+    { href: "/enrollments", label: "طلابي" },
   ],
   STUDENT: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
+    { href: "/enrollments", label: "تسجيلي" },
   ],
 };
 

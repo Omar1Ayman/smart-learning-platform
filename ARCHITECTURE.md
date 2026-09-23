@@ -33,7 +33,7 @@ team is one engineer (Claude) plus one product owner (Omar). Microservices
 buy you independent deployability and fault isolation at the cost of
 distributed transactions, network calls where a function call would do, and
 N services to operate. None of that cost is justified yet. The Django app is
-split into **apps** (`tenants`, `accounts`, `academics`, `content`,
+split into **apps** (`tenants`, `accounts`, `academics`, `people`, `content`,
 `questions`, `assessments`, `exams`, `audit`, `reports`, `common`) with
 clear boundaries, so that splitting a hot app out into its own service later
 — if 1000-tenant scale ever demands it (spec §81) — is a deployment change,
@@ -69,7 +69,8 @@ just described:
                         __init__, so a foreign tenant's id is not just
                         rejected — it's not a valid choice at all, the same
                         way a nonexistent id would be rejected.
-                        └─ apps/academics/serializers.py
+                        └─ apps/common/serializers.py (TenantScopedModelSerializer),
+                           used by apps/academics and apps/people
 
 6. DB query             get_queryset() filters by request.tenant, and
                         perform_create() forces tenant=request.tenant. A
@@ -111,7 +112,7 @@ possible.
 
 ## 4. Database architecture
 
-Current schema (Phase 0–4 slice — see PROJECT_MEMORY.md for what's pending):
+Current schema (Phase 0–5 slice — see PROJECT_MEMORY.md for what's pending):
 
 ```
 Tenant
@@ -126,8 +127,13 @@ Tenant
            └─< Course (also FKs Subject)
                 └─< Chapter
                      └─< Lesson
+                └─< TeacherAssignment (FKs User[role=TEACHER], M2M Group)
  └─< Subject
  └─< AuditLog
+
+User (role=STUDENT) ─< Enrollment >─ Group
+                         (also FKs AcademicYear, denormalized from
+                          Group.academic_year — see PROJECT_MEMORY.md §5)
 ```
 
 Every tenant-owned model inherits `TenantScopedModel` (`apps/common/models.py`):
@@ -139,7 +145,7 @@ child → parent so deleting a Tenant cleanly removes everything under it in
 one transaction — nothing to leak or orphan.
 
 Content, Question Bank, Assessment, Attempt, and Result are **designed**
-(see §7 below and PROJECT_MEMORY.md §5) but not yet migrated.
+(see PROJECT_MEMORY.md §5) but not yet migrated.
 
 ## 5. Backend architecture
 
@@ -150,15 +156,22 @@ backend/
 │   └── urls.py                             /api/v1/... root
 ├── apps/
 │   ├── common/     abstract base models, tenant-aware manager, permission
-│   │               primitives, pagination, exception handler — every other
-│   │               app depends on this one; it depends on nothing else
+│   │               primitives, tenant-scoped-serializer mixin, pagination,
+│   │               exception handler — every other app depends on this
+│   │               one; it depends on nothing else
 │   ├── tenants/     Tenant model, signup endpoint (creates Tenant + OWNER
 │   │               atomically)
 │   ├── accounts/    custom User model (email-based), JWT views, token
-│   │               claims
-│   ├── academics/   AcademicYear, Term, Stage, Grade, Group, Subject
+│   │               claims, user-management endpoint (Owner/Admin create
+│   │               Teacher/Student/Admin accounts)
+│   ├── academics/   AcademicYear, Term, Stage, Grade, Group, Subject,
+│   │               Course, Chapter, Lesson
+│   ├── people/      TeacherAssignment, Enrollment, Promotion — the
+│   │               people-to-structure relationships, split from
+│   │               academics once it needed the same tenant-scoped-
+│   │               serializer base academics already used
 │   ├── audit/       AuditLog model + log_action() service
-│   └── (content, questions, assessments, exams, reports — Phase 4+)
+│   └── (content, questions, assessments, exams, reports — Phase 6+)
 └── tests/           pytest-django; factories + isolation/permission tests
 ```
 
@@ -174,20 +187,28 @@ design exercise each time.
 frontend/
 ├── app/
 │   ├── layout.tsx                 <html dir="rtl" lang="ar">, fonts, providers
-│   ├── (auth)/login/page.tsx
+│   ├── (auth)/login/, signup/page.tsx
 │   └── (dashboard)/
 │       ├── layout.tsx             sidebar + topbar shell, auth guard
 │       ├── dashboard/page.tsx
-│       ├── academic-years/page.tsx
-│       └── terms/page.tsx         SmartSelect + QuickCreateModal reference use
+│       ├── academic-years/, terms/, courses/page.tsx
+│       ├── team/page.tsx          user management (create Teacher/Student/Admin)
+│       ├── teacher-assignments/page.tsx
+│       └── enrollments/page.tsx   role-scoped list — same page, backend
+│                                  already returns the right rows per viewer
 ├── components/
-│   ├── ui/                        Button, Input, Modal, Drawer, Table, Toast primitives
-│   ├── layout/                    Sidebar (role-aware nav), Topbar
-│   └── common/                    SmartSelect.tsx, QuickCreateModal.tsx
+│   ├── ui/                        Button, Input, Modal, States (loading/empty/error)
+│   ├── layout/                    Sidebar (role-aware nav), Topbar, AuthGuard
+│   ├── common/                    SmartSelect.tsx, QuickCreateModal.tsx
+│   └── <domain>/                  one folder per entity's form (academic-years,
+│                                  terms, stages, grades, courses, users,
+│                                  teacher-assignments, enrollments) — same
+│                                  shape every time, see below
 └── lib/
     ├── api/client.ts              axios instance, 401 → silent refresh → retry once
+    ├── api/<domain>.ts            one file per entity: list()/create() + types
     ├── auth/store.ts              zustand — access token + user, memory-only
-    └── query/provider.tsx         TanStack Query provider
+    └── validation/schemas.ts      one zod schema + inferred type per entity
 ```
 
 **RTL is structural, not a theme switch** (spec §14): the root `<html>` tag
@@ -197,13 +218,16 @@ Tailwind's logical properties (`ms-*`/`me-*`/`ps-*`/`pe-*`, not
 RTL is the right edge — there is no LTR version to "flip" later.
 
 **SmartSelect / QuickCreateModal** (spec §16–17): a `SmartSelect` is a
-searchable relation picker with a "+" action; `QuickCreateModal` is a
-generic modal that renders a form, and on success returns the created
-record so the caller can auto-select it and close the modal — the calling
-form's other fields are untouched. `TermForm` is the reference
-implementation: picking/creating an `AcademicYear` without leaving the Term
-form. Every future "pick or create a related record" flow (Teacher, Group,
-Course, …) reuses these two components rather than growing bespoke modals.
+relation picker with a "+" action; `QuickCreateModal` is a generic modal
+that renders a form, and on success returns the created record so the
+caller can auto-select it and close the modal — the calling form's other
+fields are untouched. This is used two ways: **nested chains** (Courses
+page: Course → quick-create Grade → quick-create Stage, three levels) and
+**cross-domain reuse** (Teacher Assignment / Enrollment forms quick-create
+a `User` via the same `UserForm` everywhere else uses, just with a
+`fixedRole` prop locking it to TEACHER or STUDENT). Every future "pick or
+create a related record" flow reuses these two components and copies an
+existing form's shape rather than inventing a new one.
 
 ## 7. API structure
 
@@ -214,7 +238,10 @@ Versioned from day one: `/api/v1/...`. Current surface (grows in
 POST /api/v1/auth/signup/      create Tenant + OWNER, returns tokens
 POST /api/v1/auth/login/       returns access token (body) + refresh (cookie)
 POST /api/v1/auth/refresh/     reads refresh cookie, returns new access token
+POST /api/v1/auth/logout/      blacklists the refresh token, clears the cookie
 GET  /api/v1/auth/me/          current user + tenant
+
+/api/v1/users/                 OWNER/ADMIN create TEACHER/STUDENT/ADMIN accounts
 
 /api/v1/academic-years/        CRUD — OWNER/ADMIN write, all roles read
 /api/v1/terms/
@@ -225,11 +252,17 @@ GET  /api/v1/auth/me/          current user + tenant
 /api/v1/courses/
 /api/v1/chapters/
 /api/v1/lessons/
-```
 
-Planned (unchanged from spec §67, not yet built): `/content`,
-`/question-banks`, `/questions`, `/assessments`, `/attempts`, `/results`,
-`/reports`, `/audit`, `/security`.
+/api/v1/teacher-assignments/   CRUD — OWNER/ADMIN write, all roles read
+/api/v1/enrollments/           CRUD — OWNER/ADMIN write; **read is role-scoped**:
+                                OWNER/ADMIN see every row, TEACHER sees only
+                                students in their assigned groups (or whole
+                                grade if unnarrowed), STUDENT sees only their
+                                own — enforced in EnrollmentViewSet.get_queryset(),
+                                not just by tenant (see SECURITY.md §1)
+/api/v1/enrollments/promote/   POST-only action — dry_run for preview,
+                                atomic on confirm (spec §25)
+```
 
 ## 8. Anti-cheat architecture (designed, not yet implemented — Phase 10)
 

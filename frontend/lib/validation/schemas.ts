@@ -55,6 +55,36 @@ export const courseSchema = z.object({
 });
 export type CourseFormValues = z.infer<typeof courseSchema>;
 
+export const groupSchema = z.object({
+  grade: z.string().min(1, "اختر الصف"),
+  academic_year: z.string().min(1, "اختر السنة الدراسية"),
+  name: z.string().min(1, "الاسم مطلوب").max(100),
+  capacity: z.coerce.number().int().min(1).optional(),
+});
+export type GroupFormValues = z.infer<typeof groupSchema>;
+
+export const userSchema = z.object({
+  email: z.string().email("بريد إلكتروني غير صالح"),
+  password: z.string().min(10, "10 أحرف على الأقل"),
+  role: z.enum(["ADMIN", "TEACHER", "STUDENT"], { errorMap: () => ({ message: "اختر دورًا" }) }),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+});
+export type UserFormValues = z.infer<typeof userSchema>;
+
+export const teacherAssignmentSchema = z.object({
+  teacher: z.string().min(1, "اختر المعلم"),
+  course: z.string().min(1, "اختر الكورس"),
+  groups: z.array(z.string()).optional(),
+});
+export type TeacherAssignmentFormValues = z.infer<typeof teacherAssignmentSchema>;
+
+export const enrollmentSchema = z.object({
+  student: z.string().min(1, "اختر الطالب"),
+  group: z.string().min(1, "اختر المجموعة"),
+});
+export type EnrollmentFormValues = z.infer<typeof enrollmentSchema>;
+
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),

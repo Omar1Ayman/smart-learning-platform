@@ -28,6 +28,15 @@ Tenant → Role → Object → Relationship → DB query. Concretely:
   at serializer init time — a foreign tenant's id isn't rejected with a
   permissions error that would confirm the id exists, it's simply not a
   valid choice, the same response you'd get for a made-up id.
+- **Read visibility can be narrower than tenant membership.** Tenant
+  isolation says "you can't see another tenant's data"; that's necessary
+  but not sufficient — spec §12/§13 also require a Teacher to see only
+  their own assignment scope and a Student to see only their own record.
+  `EnrollmentViewSet.get_queryset()` implements this: it starts from the
+  same tenant-scoped queryset every other endpoint uses, then narrows it
+  further by `request.user.role`. A Teacher fetching an out-of-scope
+  enrollment by direct ID gets 404, the same as a genuine cross-tenant
+  request — it's simply outside their queryset, not a special case.
 
 ## 2. Threat checklist (spec §38) — current status
 
@@ -35,9 +44,8 @@ Tenant → Role → Object → Relationship → DB query. Concretely:
 |--------------------------------|----------------|-------|
 | IDOR                            | Mitigated      | `IsSameTenantObject` on every detail/update/delete route; tested in `test_tenant_isolation.py`. |
 | BOLA                            | Mitigated      | Same mechanism as IDOR — object-level check runs regardless of role. |
-| Broken access control           | Mitigated (MVP scope) | Role checks (`HasRole`, `IsAdminForWriteActions`) gate every write; read access is the same for all authenticated tenant members for now — per-teacher scoping (spec §12, "sees only their assignments") lands in Phase 5 once `TeacherAssignment` exists. |
-| Authentication attacks          | Partially mitigated | JWT short-lived (30 min) access tokens, DB-fresh user lookups. **Not yet done:** login rate limiting / brute-force lockout (spec §49) — DRF throttling isn't configured yet. |
-| Privilege escalation            | Mitigated       | `role` is never a client-writable field on any serializer; only set server-side at signup (`OWNER`) or by an admin-only future invite flow. |
+| Broken access control           | Mitigated       | Role checks (`HasRole`, `IsAdminForWriteActions`) gate every write. Read access on Enrollment is per-teacher-scoped (spec §12) via `TeacherAssignment`, tested in `test_enrollments.py`. Still MVP-scoped elsewhere: e.g. `TeacherAssignment`'s own list is tenant-wide, not narrowed to "your own assignments" (see PROJECT_MEMORY.md §15). |
+| Privilege escalation            | Mitigated       | `role` is never a client-writable field on any serializer; only set server-side at signup (`OWNER`) or via the OWNER/ADMIN-only `/api/v1/users/` endpoint, which itself rejects `role=OWNER` (`UserCreateSerializer.validate_role`) — there is exactly one OWNER per tenant, set at signup, never created after the fact. |
 | Mass assignment                 | Mitigated       | Serializers use explicit `fields` allow-lists, never `fields = "__all__"`; `tenant` and `role` are excluded from every writable serializer. Tested explicitly: `test_tampered_tenant_claim_is_ignored`. |
 | Sensitive data exposure         | Mitigated (current scope) | No password hashes, internal permission flags, or (once they exist) correct-answer fields are ever put in a serializer's `fields`. |
 | SQL injection                   | Mitigated       | Django ORM only, no raw SQL anywhere in the codebase yet. |
@@ -81,9 +89,10 @@ design in `ARCHITECTURE.md` §8.
 ## 6. Known gaps (honest, as of this writing)
 
 - **No rate limiting configured yet** — highest-priority item for the next
-  security pass, before Phase 5 starts.
-- **Audit logging covers two actions** (tenant signup, academic year
-  creation) as a pattern demonstration, not the full list in spec §50 yet.
+  security pass, before Phase 6 starts.
+- **Audit logging covers three actions** (tenant signup, academic year
+  creation, promotion) as a pattern demonstration, not the full list in
+  spec §50 yet.
 - **No file upload surface yet**, so upload-specific hardening hasn't been
   built or tested — don't treat its absence from the table above as "safe
   by default" once that feature lands.
