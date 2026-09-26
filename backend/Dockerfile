@@ -7,12 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # libpq-dev + gcc are needed to build psycopg2 from source if a wheel isn't
-# available for the target platform; removed from the final layer isn't
+# available for the target platform; libmagic1 is required at runtime by
+# python-magic (apps/content — real MIME sniffing for uploaded files, not
+# just trusting the filename extension). Removed from the final layer isn't
 # done here for simplicity — acceptable for now, revisit with a multi-stage
 # build if image size becomes a real concern (spec #82 — don't over-engineer
 # before there's a reason to).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq-dev gcc \
+    && apt-get install -y --no-install-recommends libpq-dev gcc libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements/ requirements/

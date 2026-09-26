@@ -1,7 +1,7 @@
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject
+from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject, Term
 from apps.accounts.models import User
 from apps.people.models import Enrollment, TeacherAssignment
 from apps.tenants.models import Tenant
@@ -156,3 +156,15 @@ class EnrollmentFactory(DjangoModelFactory):
     tenant = factory.SelfAttribute("group.tenant")
     academic_year = factory.SelfAttribute("group.academic_year")
     student = factory.LazyAttribute(lambda o: StudentUserFactory(tenant=o.group.tenant))
+
+
+class TermFactory(DjangoModelFactory):
+    class Meta:
+        model = Term
+
+    academic_year = factory.SubFactory(AcademicYearFactory)
+    tenant = factory.SelfAttribute("academic_year.tenant")
+    name = factory.Sequence(lambda n: f"Term {n}")
+    start_date = "2026-09-01"
+    end_date = "2027-01-31"
+    order = 1

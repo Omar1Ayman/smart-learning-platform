@@ -46,6 +46,39 @@ class IsAdminForWriteActions(BasePermission):
         )
 
 
+class IsStaffForWriteActions(BasePermission):
+    """Like IsAdminForWriteActions, but TEACHER may also write — for
+    content where teachers realistically need to upload their own
+    lesson material (spec doesn't restrict this to Admin only). Combine
+    with IsOwnContentOrAdmin below for *object*-level write (a Teacher
+    can edit their own upload; only OWNER/ADMIN can touch anyone else's)."""
+
+    message = "التعديل متاح فقط لمالك أو مسؤول المؤسسة أو معلّم."
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("OWNER", "ADMIN", "TEACHER")
+        )
+
+
+class IsCreatorOrAdmin(BasePermission):
+    """Object-level: OWNER/ADMIN may modify anything; anyone else only
+    what they themselves created (tracked via obj.created_by)."""
+
+    message = "لا يمكنك تعديل محتوى أنشأه شخص آخر."
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        if request.user.role in ("OWNER", "ADMIN"):
+            return True
+        return getattr(obj, "created_by_id", None) == request.user.id
+
+
 class IsSameTenantObject(BasePermission):
     """Object-level check: the row must belong to request.tenant. This is
     the backstop even if a queryset ever forgets to filter — defense in
