@@ -85,6 +85,48 @@ export const enrollmentSchema = z.object({
 });
 export type EnrollmentFormValues = z.infer<typeof enrollmentSchema>;
 
+export const contentSchema = z
+  .object({
+    title: z.string().min(1, "العنوان مطلوب").max(255),
+    content_type: z.enum(
+      [
+        "PDF",
+        "VIDEO",
+        "IMAGE",
+        "DOCUMENT",
+        "EXTERNAL_LINK",
+        "TEXT",
+        "BOOK",
+        "SUMMARY",
+        "LESSON_EXPLANATION",
+        "CHAPTER_RESOURCE",
+      ],
+      { errorMap: () => ({ message: "اختر نوع المحتوى" }) }
+    ),
+    description: z.string().optional(),
+    external_url: z.string().optional(),
+    text_body: z.string().optional(),
+    stage: z.string().optional(),
+    grade: z.string().optional(),
+    group: z.string().optional(),
+    subject: z.string().optional(),
+    course: z.string().optional(),
+    chapter: z.string().optional(),
+    lesson: z.string().optional(),
+    academic_year: z.string().optional(),
+    term: z.string().optional(),
+  })
+  .refine(
+    (data) => data.content_type !== "EXTERNAL_LINK" || !!data.external_url,
+    { message: "الرابط الخارجي مطلوب", path: ["external_url"] }
+  )
+  .refine(
+    (data) =>
+      !["TEXT", "SUMMARY", "LESSON_EXPLANATION"].includes(data.content_type) || !!data.text_body,
+    { message: "النص مطلوب", path: ["text_body"] }
+  );
+export type ContentFormValues = z.infer<typeof contentSchema>;
+
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),

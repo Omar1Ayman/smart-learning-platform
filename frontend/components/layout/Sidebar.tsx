@@ -12,6 +12,7 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
+    { href: "/content", label: "المحتوى" },
     { href: "/team", label: "الفريق" },
     { href: "/teacher-assignments", label: "تكليفات المعلمين" },
     { href: "/enrollments", label: "التسجيلات" },
@@ -21,6 +22,7 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
+    { href: "/content", label: "المحتوى" },
     { href: "/team", label: "الفريق" },
     { href: "/teacher-assignments", label: "تكليفات المعلمين" },
     { href: "/enrollments", label: "التسجيلات" },
@@ -28,11 +30,13 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
   TEACHER: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
+    { href: "/content", label: "المحتوى" },
     { href: "/enrollments", label: "طلابي" },
   ],
   STUDENT: [
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
+    { href: "/content", label: "المحتوى" },
     { href: "/enrollments", label: "تسجيلي" },
   ],
 };
