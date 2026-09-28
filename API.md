@@ -106,7 +106,45 @@ creates no new row; every other action creates a new `Enrollment` for
 `TRANSFERRED`. A student can only ever have one enrollment per academic
 year — promoting into a year they're already enrolled in is rejected.
 
+## Content
+
+### `GET/POST /api/v1/content/`, `GET/PATCH/DELETE /api/v1/content/<id>/`
+`POST` is `multipart/form-data` when a file is attached (JSON is fine for
+link/text content). OWNER/ADMIN/TEACHER may write; a TEACHER may only
+modify content they created (`created_by`), OWNER/ADMIN anything.
+
+Fields: `title`, `content_type` (`PDF`, `VIDEO`, `IMAGE`, `DOCUMENT`,
+`BOOK`, `CHAPTER_RESOURCE` need a `file`; `EXTERNAL_LINK` needs
+`external_url`; `TEXT`, `SUMMARY`, `LESSON_EXPLANATION` need `text_body` —
+exactly one payload, the other two must be empty), `description`,
+`is_published`, and nine independent optional scope fields: `stage`,
+`grade`, `group`, `subject`, `course`, `chapter`, `lesson`,
+`academic_year`, `term` (each scoped to the caller's tenant).
+
+Upload rules (`apps/content/validators.py`): extension whitelist per type,
+real MIME sniffed from the file bytes (not the filename or the client's
+`Content-Type`), size cap per type (5 MB images, 20 MB PDF/documents,
+50 MB books, 300 MB video). Violations are a `400` with a `file` error.
+The stored path is a generated UUID — the uploaded name is kept only in
+`original_filename` for display. `file` is write-only: no response ever
+contains a direct file path.
+
+**Read visibility:** OWNER/ADMIN/TEACHER see every row in the tenant. A
+STUDENT sees a row only if *every non-null scope field on it* matches
+their current enrollment's context (their group/grade/stage/academic
+year, and the courses/chapters/lessons of their grade) and it is
+published; a student with no enrollment sees nothing. An unset scope
+field restricts nothing — so a book scoped only to grade + subject + term
+is visible to every student in that grade regardless of group.
+
+### `GET /api/v1/content/<id>/download/`
+The only way to read a payload. Runs the exact same queryset and object
+permission chain as the detail view (so an out-of-scope student gets
+`404`, an unauthenticated caller `401`). Returns the file as an
+attachment for file types, `{"external_url": ...}` for links, or
+`{"text_body": ...}` for text types. There is no public `/media/` URL.
+
 ## Planned (not built yet — see PROJECT_MEMORY.md roadmap)
 
-`/content`, `/question-banks`, `/questions`, `/assessments`, `/attempts`,
-`/results`, `/reports`, `/audit`, `/security`.
+`/question-banks`, `/questions`, `/assessments`, `/attempts`, `/results`,
+`/reports`, `/audit`, `/security`.

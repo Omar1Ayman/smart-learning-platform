@@ -1,9 +1,9 @@
 # PROJECT_MEMORY.md
 
 _Read this file first, every session — before touching code._
-_Last updated: 2026-09-21 — Roadmap position: Phase 5 (People &
-Relationships) done — TeacherAssignment, Enrollment with role-scoped
-visibility, Promotion. Next up: Phase 6 (Content)._
+_Last updated: 2026-09-23 — Roadmap position: Phase 6 (Content) done —
+flexible scoping, real file-upload security, student cross-group
+visibility. Next up: Phase 7 (Question Bank)._
 
 ## 1. Product vision
 
@@ -50,26 +50,28 @@ Tenant ──< Subject
 Tenant ──< Course (FK's Subject + Grade) ──< Chapter ──< Lesson
 Tenant ──< TeacherAssignment (Teacher × Course × Group[] — empty Group[] = whole grade)
 Tenant ──< Enrollment (Student × Group, denormalized AcademicYear — one per student per year)
+Tenant ──< Content (every scope field independently nullable — see below)
 Tenant ──< AuditLog
 ```
 
 Course intentionally has **no `teacher` field** — that's what
 `TeacherAssignment` is for (see §14). Lesson intentionally has **no
-content/body field** — attaching PDFs, video, text, etc. at a flexible
-scope is Content's job (Phase 6); a Lesson today is just the slot Content
-will attach to. `TeacherAssignment` is keyed on `Course` (which already
-encodes Subject + Grade) plus an optional `groups` M2M to narrow it,
-rather than a pile of independently-nullable Stage/Grade/Group/Subject
-fields — see §14 for why. `Enrollment.academic_year` is a **deliberate
-denormalization** of `group.academic_year`, kept in sync server-side only
-(never client-writable), purely so "one enrollment per student per year"
-can be a real DB constraint — Django can't express uniqueness across a
-related model's field directly.
+content/body field** — that's `Content`'s job now, and it's built:
+`Content` can attach at *any independent combination* of stage/grade/
+group/subject/course/chapter/lesson/academic_year/term (all nullable),
+unlike `TeacherAssignment` which is deliberately keyed on one canonical
+FK (Course) — Content has no such canonical shape (spec §27's own example
+is grade+subject+term with no group at all), so nullable-everything is
+the correct model here, not a shortcut (see §14). Visibility for a
+STUDENT is computed, not stored: `apps/content/services.py` resolves the
+student's current Enrollment → Group → Grade → Stage and their grade's
+Courses/Chapters/Lessons, then a Content row is visible only if *every
+one of its non-null scope fields* matches that context — an unset field
+imposes no restriction at all. This is what makes the spec's cross-group
+example work for real.
 
-**Designed, not yet built** (Phase 6 → Phase 9):
+**Designed, not yet built** (Phase 7 → Phase 9):
 ```
-Content  (flexible scope: any of tenant/stage/grade/group/subject/
-          course/chapter/lesson/year/term — spec §27)
 QuestionBank ──< Question             (PENDING → APPROVED/REJECTED workflow)
 Assessment  (independent targeting: tenant/stage/grade/group/students;
              independent of Course/QuestionBank — spec §33)
@@ -97,17 +99,18 @@ parent. No business rule relies on frontend validation alone (spec §4).
 ## 7. Backend architecture
 
 Django 5 + DRF, modular monolith (`backend/apps/{common,tenants,accounts,
-academics,people,audit}` today — `people` holds `TeacherAssignment` and
-`Enrollment`, split from `academics` since it's about people-to-structure
-relationships, not the structure itself). Full layout and the
-request-lifecycle enforcement chain: `ARCHITECTURE.md` §2/§5. Auth:
-SimpleJWT, access token short-lived (30 min, returned in the JSON body),
-refresh token (7 days, rotated on use, blacklisted after rotation,
-delivered only as an `httpOnly`/`Secure`/`SameSite=Strict` cookie scoped
-to `/api/v1/auth/refresh/`). The tenant-scoped-relational-field pattern
-(`apps/academics/serializers.py`'s old `_TenantScopedSerializer`) was
-promoted to `apps/common/serializers.py` as `TenantScopedModelSerializer`
-once `people` needed it too — one shared implementation, not a copy per app.
+academics,people,content,audit}` today — `people` holds
+`TeacherAssignment`/`Enrollment`; `content` holds `Content` plus its own
+`validators.py` (extension/MIME/size checks) and `services.py`
+(visibility resolution) rather than cramming those into the serializer).
+Full layout and the request-lifecycle enforcement chain:
+`ARCHITECTURE.md` §2/§5. Auth: SimpleJWT, access token short-lived
+(30 min, returned in the JSON body), refresh token (7 days, rotated on
+use, blacklisted after rotation, delivered only as an `httpOnly`/
+`Secure`/`SameSite=Strict` cookie scoped to `/api/v1/auth/refresh/`). The
+tenant-scoped-relational-field pattern lives in
+`apps/common/serializers.py` as `TenantScopedModelSerializer`, shared by
+academics/people/content.
 
 ## 8. Frontend architecture
 
@@ -120,22 +123,31 @@ not the `watch()` method, for anything read reactively — `watch()` opts
 the component out of Next's React Compiler memoization; ESLint will flag
 it). The `SmartSelect` + `QuickCreateModal` pattern (spec §16/17) is used
 throughout, including a **three-level nested chain** (Course → Grade →
-Stage on the Courses page) and **cross-domain nesting** — the Teacher
-Assignment and Enrollment forms quick-create a `User` (Teacher/Student)
-inline via the same `UserForm`, just with a locked `fixedRole` prop, so
-"there's no teacher yet" never blocks the flow of assigning one. Reuse
-`SmartSelect`/`QuickCreateModal`/this chaining shape for every future
-"pick or create a related record" flow instead of building a new modal
-each time.
+Stage on the Courses page) and **cross-domain nesting** (Teacher
+Assignment / Enrollment forms quick-create a `User` inline via
+`UserForm`'s `fixedRole` prop). The Content page is the one place so far
+that isn't a plain JSON form: `lib/api/content.ts`'s `createContent()`
+builds a `FormData`/multipart request when a file is attached, and
+`downloadContent()` branches on the response's `Content-Type` (JSON for
+external-link/text content, a `Blob` for real files) rather than assuming
+one shape — copy that pattern for any future upload/download flow rather
+than assuming every API call is JSON in and JSON out.
 
 ## 9. Security model
 
 Full threat-by-threat status: `SECURITY.md`. Headline decisions: UUIDs are
 never authorization; `tenant`/`role` are never client-writable fields on
 any serializer; refresh tokens are `httpOnly`; tracebacks never reach an API
-response. Role-scoped *read* visibility (not just tenant isolation) is now
-real for Enrollment — see §12. **Known gap, highest priority for the next
-security pass:** login/signup/refresh are not yet rate-limited.
+response. Role-scoped *read* visibility (not just tenant isolation) is
+real for Enrollment and, per-student, for Content. File uploads
+(`apps/content/validators.py`) check real extension, a genuine MIME sniff
+of the file's bytes via `python-magic` (never trust the filename or the
+client-sent `Content-Type` header alone), and a per-type size cap;
+storage paths are UUID-generated, never derived from the uploaded name;
+there is no direct `/media/...` URL anywhere — every file is served
+through an authenticated `download` action that re-runs the exact same
+visibility check the list view uses. **Known gap, highest priority for
+the next security pass:** login/signup/refresh are not yet rate-limited.
 
 ## 10. Anti-cheat architecture
 
@@ -149,38 +161,39 @@ human review queue. Never an automatic cheating verdict (spec §46).
 `/api/v1/...`, versioned from day one. Current + planned endpoint list:
 `API.md`.
 
-## 12. Completed features (Phase 0–5)
+## 12. Completed features (Phase 0–6)
 
 - Tenant signup (`Tenant` + `OWNER` `User` created atomically); OWNER/ADMIN
   can now create TEACHER/STUDENT/ADMIN accounts via `/api/v1/users/`
 - JWT login / cookie-based refresh / `me` endpoint
-- Full tenant-isolation + role-permission enforcement chain, with **47
+- Full tenant-isolation + role-permission enforcement chain, with **70
   passing automated tests against real PostgreSQL**, including:
   - cross-tenant read of another tenant's object → 403/404, never in a list
   - a client-supplied `tenant` field on create is silently ignored
   - relationship-permission layer (a `Course`/`Term`/`TeacherAssignment`/
-    `Enrollment` can't reference another tenant's related object)
-  - **role-scoped read visibility on Enrollment** (spec §12/§13, not just
-    tenant isolation): OWNER/ADMIN see every enrollment; TEACHER sees only
-    students in groups they're assigned to (directly, or via a
-    whole-grade assignment); STUDENT sees only their own — and a Teacher
-    fetching an out-of-scope enrollment by direct ID gets 404, not 403,
-    because it's genuinely outside their queryset, the same mechanism
-    tenant isolation itself uses
-  - Promotion is atomic: one invalid item in a batch rolls back every
-    item, tested explicitly
+    `Enrollment`/`Content` can't reference another tenant's related object)
+  - role-scoped read visibility on Enrollment (spec §12/§13) — extended
+    in Phase 6 to **Content**, per-student, computed from their live
+    academic context rather than a stored flag
+  - Promotion is atomic: one invalid item in a batch rolls back every item
+  - **file upload security** (spec §78): wrong extension rejected, real
+    file bytes not matching the claimed type rejected (MIME-sniffed, not
+    filename-trusted), oversized files rejected, a crafted `../../`-style
+    filename never survives into the stored path, a Teacher can't edit
+    another Teacher's uploaded content, an unauthenticated request can't
+    download anything
 - Academic Year / Term / Stage / Grade / Group / Subject / Course /
-  Chapter / Lesson / **TeacherAssignment / Enrollment**: models with
-  tenant-scoped constraints, full CRUD API, tenant-scoped serializers
+  Chapter / Lesson / TeacherAssignment / Enrollment / **Content**: models
+  with tenant-scoped constraints, full CRUD API, tenant-scoped serializers
 - **Promotion** (`POST /api/v1/enrollments/promote/`): PROMOTE / REPEAT /
-  TRANSFER / GRADUATE, `dry_run` flag doubles as the "Preview" step (spec
-  §25) without duplicating validation logic, real transaction on confirm
+  TRANSFER / GRADUATE, `dry_run` flag doubles as the "Preview" step
 - Backend fully lint-clean (`flake8`, `black`), zero pending migrations
 - Frontend: RTL shell, login/signup flow with silent refresh, Academic
-  Years / Terms / Courses / **Team (user management) / Teacher
-  Assignments / Enrollments** pages. Enrollments page automatically
-  reflects the viewer's role-scoped visibility with zero special frontend
-  logic — it just renders whatever the backend returns.
+  Years / Terms / Courses / Team / Teacher Assignments / Enrollments /
+  **Content** pages. Content's create form switches between a file input,
+  a URL input, or a textarea depending on the chosen type, and "open"
+  correctly branches between downloading a real file and showing a link
+  or plain text.
 - Frontend fully lint-clean (`eslint` flat config), builds cleanly,
   `npm audit` = 0 vulnerabilities
 - `docker-compose.yml`, multi-stage Dockerfiles, CI workflow — **the
@@ -189,19 +202,20 @@ human review queue. Never an automatic cheating verdict (spec §46).
 
 ## 13. Pending features (rest of the roadmap)
 
-Content (flexible scoping), Question Bank + review workflow, Assessment
-Builder (6-step wizard) + targeting + scheduling + randomization, Exam
-engine (attempts/timer/autosave/server-side scoring), Anti-cheat event
-tracking + suspicion dashboard, all three role dashboards (beyond the
-current placeholder shell — they should now surface real
-TeacherAssignment/Enrollment data), Reports, rate limiting, full audit
-coverage (currently 3 of ~10 listed actions — signup, academic-year
-create, promotion), onboarding wizard, tenant branding UI, bulk
-operations, accessibility pass, production deployment. **Promotion has no
-frontend UI yet** — it's a real, tested backend endpoint
-(`/api/v1/enrollments/promote/`) with no page calling it; building that
-multi-step wizard (pick source group → preview → assign actions per
-student → confirm) is a good Phase 6+ frontend task on its own.
+Question Bank + review workflow, Assessment Builder (6-step wizard) +
+targeting + scheduling + randomization, Exam engine (attempts/timer/
+autosave/server-side scoring), Anti-cheat event tracking + suspicion
+dashboard, all three role dashboards (beyond the current placeholder
+shell), Reports, rate limiting, full audit coverage (currently 3 of ~10
+listed actions), onboarding wizard, tenant branding UI, bulk operations,
+accessibility pass, production deployment, malware/antivirus scanning for
+uploads (`Content.scan_status` is the hook, nothing populates it yet).
+**Promotion has no frontend UI yet** — a real, tested backend endpoint
+with no page calling it. **Content's frontend scope form exposes 5 of 9
+possible scope fields** (stage/grade/group/subject/course — chapter,
+lesson, academic_year, term are supported by the API but not in the form
+yet); add them if a real workflow needs finer scoping than "which
+course," which hasn't come up yet.
 
 ## 14. Architecture decisions log
 
@@ -264,15 +278,49 @@ student → confirm) is a good Phase 6+ frontend task on its own.
   (`apps/people/serializers.py`) hit this directly — its first version
   scoped querysets in `__init__` and every promotion silently 400'd with
   "object does not exist" until this was understood.
+- **2026-09-23 — Content's scope fields are independently nullable**
+  (stage/grade/group/subject/course/chapter/lesson/academic_year/term),
+  unlike `TeacherAssignment`'s Course-keyed shape. Deliberate difference:
+  "who teaches what" has one natural canonical FK (Course); "what can see
+  this content" genuinely doesn't — spec §27's own example (grade +
+  subject + term, no group) needs independent axes, not a hierarchy.
+- **2026-09-23 — File storage paths are always a fresh UUID**, never
+  derived from the uploaded filename, and there is no `/media/...` route
+  in `config/urls.py` at all, even in dev — every file is only reachable
+  through `ContentViewSet.download`, which reruns the full tenant+role+
+  eligibility check. This was a deliberate choice to close spec §78's
+  "Access control"/"Private/public visibility" items for real, not just
+  rely on a hard-to-guess path.
+- **2026-09-23 — Engineering note, a real bug found and fixed:** DRF's
+  `BooleanField` treats a field *absent* from **multipart/form** data as
+  `False` (it mimics an HTML checkbox, where "unchecked" and "not
+  present" are indistinguishable) — this silently overrides a model's own
+  `default=True` on every multipart request, i.e. every file upload,
+  since file fields require multipart. `Content.is_published` hit this
+  exactly: every uploaded file was silently created as unpublished. Fixed
+  in `ContentSerializer.create()` by checking `"is_published" not in
+  self.initial_data` and only then applying the intended default — partial
+  updates (PATCH) are unaffected (DRF handles absence differently there).
+  **Any future `BooleanField` with a non-`False` default on a serializer
+  that also accepts multipart input needs this same guard**, or a test
+  uploading a file without explicitly setting that field will pass while
+  quietly shipping the wrong value.
 
 ## 15. Known limitations (today, stated plainly)
 
 - No rate limiting yet.
 - Audit logging covers 3 of the ~10 actions spec §50 lists (tenant
   signup, academic year create, promotion) — a pattern demo, not
-  comprehensive.
-- No file upload handling yet — nothing to evaluate for upload-specific
-  risk yet, don't assume it's been hardened once it exists.
+  comprehensive. Content upload/delete isn't logged yet.
+- File uploads are validated (extension/MIME/size) and served only
+  through an authenticated, permission-checked endpoint, but there is
+  **no malware/antivirus scanning** — `Content.scan_status` exists as the
+  hook for it (spec #78 calls this "if appropriate"), nothing currently
+  populates PENDING/INFECTED.
+- Local disk storage (`MEDIA_ROOT`) only — a real deployment should move
+  to object storage (S3-style, private ACLs); swapping Django's
+  `STORAGES` setting needs no model or validator changes, by design, but
+  hasn't been exercised against a real bucket.
 - No independent security audit / penetration test. The automated tests
   cover the specific scenarios the spec names; that is necessary but not
   sufficient before a commercial launch.
@@ -280,22 +328,30 @@ student → confirm) is a good Phase 6+ frontend task on its own.
   `docker build` has never actually been run (see §12).
 - Promotion has a real, tested backend endpoint and no frontend UI yet
   (see §13).
-- TeacherAssignment's own list (not Enrollment's) is still readable by
-  any tenant member, not scoped to "only see your own assignments" —
-  lower priority than Enrollment's visibility since who-teaches-what is
-  administrative metadata, not student data, but worth tightening
-  alongside Reports/Dashboards later if it turns out to matter.
+- TeacherAssignment's own list (not Enrollment's/Content's) is still
+  readable by any tenant member, not scoped to "only see your own
+  assignments." Content's TEACHER-role read visibility is also tenant-wide
+  today (only the STUDENT-role visibility is computed per-person) — lower
+  priority than the Enrollment/Content-for-Student work since this is
+  administrative metadata and creator-only, not other people's private
+  data (and write access to others' content is already object-scoped via
+  `IsCreatorOrAdmin`), but worth tightening alongside Reports/Dashboards
+  later if it turns out to matter.
 
 ## 16. Next steps
 
-Pick up at **Phase 6 — Content**: a `Content` model attachable at a
-flexible scope (spec §27 — tenant/stage/grade/group/subject/course/
-chapter/lesson/year/term, but *not* every Content row needs every one of
-those FKs filled in) supporting PDF/video/image/document/link/text/book
-types. This is the first place file upload shows up in this codebase —
-budget real time for extension/MIME/size validation and
-private-vs-public storage, not just a model with a `FileField` (spec
-§78, and the "no file upload handling yet" limitation in §15 needs
-closing out carefully, not rushed). Same recipe as every phase so far:
-model + tenant-scoped constraints → tenant-scoped serializer → tested
-viewset → frontend page. Say "كمل" / "continue" to proceed.
+Pick up at **Phase 7 — Questions**: `QuestionBank` (independent entity,
+spec §28) and `Question` (type/difficulty/topic/points/status) with the
+PENDING → Admin review → APPROVED/REJECTED workflow (spec §29) — a
+Teacher can create a Question but explicitly **cannot approve their own**
+(spec §29's own words), which is a role+ownership check in the same
+shape as `IsCreatorOrAdmin` (`apps/common/permissions.py`) but stricter:
+here the *creator themselves* must be excluded even if they're also
+staff-permitted to write, not just non-owners. Correct answers are part
+of a Question but must never be serialized to a STUDENT-facing read (spec
+§41/§44 — this matters more once Assessments/Attempts consume Questions
+in Phase 8/9, but the serializer-level exclusion should exist from the
+start here so it's never accidentally exposed later). Same recipe as
+every phase so far: model + tenant-scoped constraints → tenant-scoped
+serializer → tested viewset → frontend page. Say "كمل" / "continue" to
+proceed.

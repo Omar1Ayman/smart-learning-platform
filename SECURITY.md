@@ -47,13 +47,13 @@ Tenant → Role → Object → Relationship → DB query. Concretely:
 | Broken access control           | Mitigated       | Role checks (`HasRole`, `IsAdminForWriteActions`) gate every write. Read access on Enrollment is per-teacher-scoped (spec §12) via `TeacherAssignment`, tested in `test_enrollments.py`. Still MVP-scoped elsewhere: e.g. `TeacherAssignment`'s own list is tenant-wide, not narrowed to "your own assignments" (see PROJECT_MEMORY.md §15). |
 | Privilege escalation            | Mitigated       | `role` is never a client-writable field on any serializer; only set server-side at signup (`OWNER`) or via the OWNER/ADMIN-only `/api/v1/users/` endpoint, which itself rejects `role=OWNER` (`UserCreateSerializer.validate_role`) — there is exactly one OWNER per tenant, set at signup, never created after the fact. |
 | Mass assignment                 | Mitigated       | Serializers use explicit `fields` allow-lists, never `fields = "__all__"`; `tenant` and `role` are excluded from every writable serializer. Tested explicitly: `test_tampered_tenant_claim_is_ignored`. |
-| Sensitive data exposure         | Mitigated (current scope) | No password hashes, internal permission flags, or (once they exist) correct-answer fields are ever put in a serializer's `fields`. |
+| Sensitive data exposure         | Mitigated (current scope) | No password hashes, internal permission flags, or (once they exist) correct-answer fields are ever put in a serializer's `fields`. `ContentSerializer.file` is `write_only` — the API never returns a direct file path. Text content is rendered as plain text by React, never as HTML (no `dangerouslySetInnerHTML`). |
 | SQL injection                   | Mitigated       | Django ORM only, no raw SQL anywhere in the codebase yet. |
 | XSS                              | Mitigated (current scope) | React escapes by default; no `dangerouslySetInnerHTML` used. Will matter more once rich content/branding (spec §91, "no unsafe HTML/JS from a tenant") is built. |
 | CSRF                             | Mitigated       | API auth is bearer-token based, not cookie-session based, so classic CSRF doesn't apply to it. The one cookie that exists — the refresh token — is `SameSite=Strict`, scoped to the single `/api/v1/auth/refresh/` path, which blocks cross-site use. |
 | SSRF                             | Not yet applicable | No server-side outbound fetch of user-supplied URLs exists yet; will need review when content-by-URL or webhook features are added. |
-| File upload attacks             | Not yet applicable | No file upload endpoint exists yet (Phase 6/Content). Will require extension+MIME+size checks, private-by-default storage, and no execution from the upload path. |
-| Path traversal                  | Not yet applicable | No filesystem path is ever built from user input yet. |
+| File upload attacks             | Mitigated (no AV scan) | `apps/content/validators.py`: extension whitelist per content type, a real MIME sniff of the file's bytes via `python-magic` (a PNG renamed `.pdf` is rejected — tested), and a per-type size cap. Files are served only through the authenticated `ContentViewSet.download` action; there is no `/media/...` route at all. **Not done:** malware/antivirus scanning (`Content.scan_status` is the hook; nothing populates it). |
+| Path traversal                  | Mitigated       | Stored filenames are a fresh UUID plus a sanitized extension (`generate_storage_filename`); nothing from the uploaded name reaches the storage path. Django's multipart parser also strips directory components first — a second, independent layer. Tested with a `../../etc/passwd.pdf` upload. |
 | Rate-limit abuse / brute force  | **Planned, not done** | DRF throttle classes are not yet configured on `/auth/login/`, `/auth/signup/`, or `/auth/refresh/`. Tracked as a known gap below. |
 | Session attacks                 | Partially mitigated | Refresh tokens rotate on use and are blacklisted after rotation (`ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`), so a stolen, already-used refresh token is dead. Refresh token itself is `httpOnly` (unreadable by JS, so an XSS bug can't exfiltrate it) + `Secure` + `SameSite=Strict`. |
 | JWT misuse                      | Mitigated       | Signature-verified on every request; short expiry; claims are advisory only (see §1) — the DB row is always the source of truth for role/tenant. |
@@ -89,13 +89,18 @@ design in `ARCHITECTURE.md` §8.
 ## 6. Known gaps (honest, as of this writing)
 
 - **No rate limiting configured yet** — highest-priority item for the next
-  security pass, before Phase 6 starts.
+  security pass, before Phase 8 (Assessments/exam APIs) starts — exam
+  endpoints are exactly the kind of surface spec §49 wants throttled.
 - **Audit logging covers three actions** (tenant signup, academic year
   creation, promotion) as a pattern demonstration, not the full list in
   spec §50 yet.
-- **No file upload surface yet**, so upload-specific hardening hasn't been
-  built or tested — don't treat its absence from the table above as "safe
-  by default" once that feature lands.
+- **Uploads have no malware scanning**, and storage is local disk. The
+  validators (extension, real MIME sniff, size) and the authenticated-only
+  download path are built and tested (Phase 6), but a production deployment
+  should add a scanner behind `Content.scan_status` and move to private
+  object storage before real customers upload real files. Video is the
+  weak spot: the 300 MB cap is enforced, but buffering that through Django
+  is not how a real deployment should serve video.
 - **No independent penetration test.** The tests in `tests/` verify the
   specific isolation and privilege-escalation scenarios the spec calls out
   (spec §71/§72) and pass against a real PostgreSQL instance, but that is

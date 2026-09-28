@@ -112,7 +112,7 @@ possible.
 
 ## 4. Database architecture
 
-Current schema (Phase 0–5 slice — see PROJECT_MEMORY.md for what's pending):
+Current schema (Phase 0–6 slice — see PROJECT_MEMORY.md for what's pending):
 
 ```
 Tenant
@@ -129,6 +129,9 @@ Tenant
                      └─< Lesson
                 └─< TeacherAssignment (FKs User[role=TEACHER], M2M Group)
  └─< Subject
+ └─< Content (every FK below independently nullable — see PROJECT_MEMORY.md §5)
+      ··· optionally FKs: Stage, Grade, Group, Subject, Course, Chapter,
+          Lesson, AcademicYear, Term ···
  └─< AuditLog
 
 User (role=STUDENT) ─< Enrollment >─ Group
@@ -144,8 +147,8 @@ date ordering (`end_date > start_date`), and `on_delete=CASCADE` from
 child → parent so deleting a Tenant cleanly removes everything under it in
 one transaction — nothing to leak or orphan.
 
-Content, Question Bank, Assessment, Attempt, and Result are **designed**
-(see PROJECT_MEMORY.md §5) but not yet migrated.
+Question Bank, Assessment, Attempt, and Result are **designed** (see
+PROJECT_MEMORY.md §5) but not yet migrated.
 
 ## 5. Backend architecture
 
@@ -170,8 +173,12 @@ backend/
 │   │               people-to-structure relationships, split from
 │   │               academics once it needed the same tenant-scoped-
 │   │               serializer base academics already used
+│   ├── content/     Content model (flexible scope), validators.py (file
+│   │               extension / real MIME sniff / size — spec §78),
+│   │               services.py (per-student visibility resolution),
+│   │               authenticated `download` action — no public /media/ route
 │   ├── audit/       AuditLog model + log_action() service
-│   └── (content, questions, assessments, exams, reports — Phase 6+)
+│   └── (questions, assessments, exams, reports — Phase 7+)
 └── tests/           pytest-django; factories + isolation/permission tests
 ```
 
@@ -192,6 +199,7 @@ frontend/
 │       ├── layout.tsx             sidebar + topbar shell, auth guard
 │       ├── dashboard/page.tsx
 │       ├── academic-years/, terms/, courses/page.tsx
+│       ├── content/page.tsx       file/link/text create form + authenticated open
 │       ├── team/page.tsx          user management (create Teacher/Student/Admin)
 │       ├── teacher-assignments/page.tsx
 │       └── enrollments/page.tsx   role-scoped list — same page, backend
@@ -262,7 +270,17 @@ GET  /api/v1/auth/me/          current user + tenant
                                 not just by tenant (see SECURITY.md §1)
 /api/v1/enrollments/promote/   POST-only action — dry_run for preview,
                                 atomic on confirm (spec §25)
+
+/api/v1/content/               CRUD — OWNER/ADMIN/TEACHER write (a Teacher
+                                only their own uploads), **read is
+                                per-student-eligibility-scoped** for STUDENT
+/api/v1/content/<id>/download/ the *only* way to read a file/link/text
+                                payload — re-runs the full permission chain
 ```
+
+Planned (unchanged from spec §67, not yet built): `/question-banks`,
+`/questions`, `/assessments`, `/attempts`, `/results`, `/reports`,
+`/audit`, `/security`.
 
 ## 8. Anti-cheat architecture (designed, not yet implemented — Phase 10)
 
