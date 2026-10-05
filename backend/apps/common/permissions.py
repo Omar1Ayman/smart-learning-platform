@@ -65,6 +65,23 @@ class IsStaffForWriteActions(BasePermission):
         )
 
 
+class IsStaffMember(BasePermission):
+    """Blocks STUDENT entirely — not a write-only gate like the classes
+    above. For resources a student should never even browse (spec #29's
+    question bank: seeing the question text ahead of time is nearly as
+    bad as seeing the answer). OWNER/ADMIN/TEACHER pass for every method;
+    STUDENT is refused before get_queryset() ever runs."""
+
+    message = "هذا القسم متاح فقط لفريق العمل (مالك/مسؤول/معلّم)."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("OWNER", "ADMIN", "TEACHER")
+        )
+
+
 class IsCreatorOrAdmin(BasePermission):
     """Object-level: OWNER/ADMIN may modify anything; anyone else only
     what they themselves created (tracked via obj.created_by)."""

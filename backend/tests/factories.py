@@ -4,6 +4,7 @@ from factory.django import DjangoModelFactory
 from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject, Term
 from apps.accounts.models import User
 from apps.people.models import Enrollment, TeacherAssignment
+from apps.questions.models import Question, QuestionBank
 from apps.tenants.models import Tenant
 
 DEFAULT_TEST_PASSWORD = "TestPass123!"
@@ -168,3 +169,30 @@ class TermFactory(DjangoModelFactory):
     start_date = "2026-09-01"
     end_date = "2027-01-31"
     order = 1
+
+
+class QuestionBankFactory(DjangoModelFactory):
+    class Meta:
+        model = QuestionBank
+
+    tenant = factory.SubFactory(TenantFactory)
+    name = factory.Sequence(lambda n: f"Question Bank {n}")
+
+
+class QuestionFactory(DjangoModelFactory):
+    class Meta:
+        model = Question
+        skip_postgeneration_save = True
+
+    bank = factory.SubFactory(QuestionBankFactory)
+    tenant = factory.SelfAttribute("bank.tenant")
+    text = factory.Sequence(lambda n: f"Question text {n}?")
+    question_type = Question.QuestionType.SHORT_ANSWER
+    accepted_answers = factory.LazyFunction(lambda: ["42"])
+    created_by = factory.LazyAttribute(lambda o: TeacherUserFactory(tenant=o.tenant))
+
+    @factory.post_generation
+    def approved(self, create, extracted, **kwargs):
+        if extracted and create:
+            self.review_status = Question.ReviewStatus.APPROVED
+            self.save(update_fields=["review_status"])
