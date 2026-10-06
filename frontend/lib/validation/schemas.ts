@@ -127,6 +127,57 @@ export const contentSchema = z
   );
 export type ContentFormValues = z.infer<typeof contentSchema>;
 
+export const questionBankSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب").max(255),
+  description: z.string().optional(),
+  subject: z.string().optional(),
+  grade: z.string().optional(),
+});
+export type QuestionBankFormValues = z.infer<typeof questionBankSchema>;
+
+const optionSchema = z.object({
+  text: z.string().min(1, "نص الاختيار مطلوب"),
+  is_correct: z.boolean(),
+});
+
+export const questionSchema = z
+  .object({
+    bank: z.string().min(1, "اختر بنك الأسئلة"),
+    text: z.string().min(1, "نص السؤال مطلوب"),
+    question_type: z.enum(["MCQ", "TRUE_FALSE", "SHORT_ANSWER", "ESSAY"], {
+      errorMap: () => ({ message: "اختر نوع السؤال" }),
+    }),
+    difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).default("MEDIUM"),
+    topic: z.string().optional(),
+    points: z.coerce.number().positive("يجب أن تكون النقاط أكبر من صفر").default(1),
+    accepted_answers_text: z.string().optional(), // comma-separated, split before submit
+    options: z.array(optionSchema).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.question_type === "MCQ" || data.question_type === "TRUE_FALSE") {
+      const options = data.options ?? [];
+      if (options.length < 2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "مطلوب اختياران على الأقل", path: ["options"] });
+      }
+      const correctCount = options.filter((o) => o.is_correct).length;
+      if (correctCount !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "يجب أن تكون هناك إجابة صحيحة واحدة بالضبط",
+          path: ["options"],
+        });
+      }
+    }
+    if (data.question_type === "SHORT_ANSWER" && !data.accepted_answers_text?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "أضف إجابة واحدة على الأقل",
+        path: ["accepted_answers_text"],
+      });
+    }
+  });
+export type QuestionFormValues = z.infer<typeof questionSchema>;
+
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),

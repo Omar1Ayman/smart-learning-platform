@@ -13,6 +13,7 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
     { href: "/content", label: "المحتوى" },
+    { href: "/questions", label: "الأسئلة" },
     { href: "/team", label: "الفريق" },
     { href: "/teacher-assignments", label: "تكليفات المعلمين" },
     { href: "/enrollments", label: "التسجيلات" },
@@ -23,6 +24,7 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/terms", label: "الترمات" },
     { href: "/courses", label: "الكورسات" },
     { href: "/content", label: "المحتوى" },
+    { href: "/questions", label: "الأسئلة" },
     { href: "/team", label: "الفريق" },
     { href: "/teacher-assignments", label: "تكليفات المعلمين" },
     { href: "/enrollments", label: "التسجيلات" },
@@ -31,6 +33,7 @@ const NAV_BY_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/dashboard", label: "الرئيسية" },
     { href: "/academic-years", label: "السنوات الدراسية" },
     { href: "/content", label: "المحتوى" },
+    { href: "/questions", label: "الأسئلة" },
     { href: "/enrollments", label: "طلابي" },
   ],
   STUDENT: [
