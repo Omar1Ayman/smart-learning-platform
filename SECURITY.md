@@ -37,6 +37,20 @@ Tenant → Role → Object → Relationship → DB query. Concretely:
   further by `request.user.role`. A Teacher fetching an out-of-scope
   enrollment by direct ID gets 404, the same as a genuine cross-tenant
   request — it's simply outside their queryset, not a special case.
+- **Some resources are staff-only, not just write-restricted.** Most
+  endpoints let every authenticated tenant member read and restrict only
+  writes (`IsAdminForWriteActions`/`IsStaffForWriteActions`). The
+  Question Bank is different: `IsStaffMember` refuses STUDENT on *every*
+  method, because being able to browse question text ahead of time is
+  close enough to seeing the answer key that read access itself needs
+  gating, not just write access.
+- **Review/approval authority excludes the author, structurally.**
+  `QuestionViewSet`'s `approve`/`reject` actions check
+  `question.created_by_id == request.user.id` and refuse with `403`
+  regardless of the caller's role — OWNER and ADMIN included, not just
+  TEACHER (spec §29 names Teachers specifically; this codebase applies
+  the same rule to everyone who can author a question, deliberately
+  stricter — see PROJECT_MEMORY.md's Phase 7 decisions).
 
 ## 2. Threat checklist (spec §38) — current status
 
@@ -47,7 +61,7 @@ Tenant → Role → Object → Relationship → DB query. Concretely:
 | Broken access control           | Mitigated       | Role checks (`HasRole`, `IsAdminForWriteActions`) gate every write. Read access on Enrollment is per-teacher-scoped (spec §12) via `TeacherAssignment`, tested in `test_enrollments.py`. Still MVP-scoped elsewhere: e.g. `TeacherAssignment`'s own list is tenant-wide, not narrowed to "your own assignments" (see PROJECT_MEMORY.md §15). |
 | Privilege escalation            | Mitigated       | `role` is never a client-writable field on any serializer; only set server-side at signup (`OWNER`) or via the OWNER/ADMIN-only `/api/v1/users/` endpoint, which itself rejects `role=OWNER` (`UserCreateSerializer.validate_role`) — there is exactly one OWNER per tenant, set at signup, never created after the fact. |
 | Mass assignment                 | Mitigated       | Serializers use explicit `fields` allow-lists, never `fields = "__all__"`; `tenant` and `role` are excluded from every writable serializer. Tested explicitly: `test_tampered_tenant_claim_is_ignored`. |
-| Sensitive data exposure         | Mitigated (current scope) | No password hashes, internal permission flags, or (once they exist) correct-answer fields are ever put in a serializer's `fields`. `ContentSerializer.file` is `write_only` — the API never returns a direct file path. Text content is rendered as plain text by React, never as HTML (no `dangerouslySetInnerHTML`). |
+| Sensitive data exposure         | Mitigated (current scope) | No password hashes or internal permission flags are ever put in a serializer's `fields`. `ContentSerializer.file` is `write_only` — the API never returns a direct file path. Text content is rendered as plain text by React, never as HTML (no `dangerouslySetInnerHTML`). `QuestionSerializer` **does** include `accepted_answers`/`explanation`/`QuestionOption.is_correct` — deliberately, since it's the staff-authoring shape and `IsStaffMember` means no STUDENT request ever reaches it. **Phase 9 must not reuse this serializer for anything a student's browser receives** — a dedicated student-facing shape that structurally omits these fields is listed as required in PROJECT_MEMORY.md §5/§13, not optional polish. |
 | SQL injection                   | Mitigated       | Django ORM only, no raw SQL anywhere in the codebase yet. |
 | XSS                              | Mitigated (current scope) | React escapes by default; no `dangerouslySetInnerHTML` used. Will matter more once rich content/branding (spec §91, "no unsafe HTML/JS from a tenant") is built. |
 | CSRF                             | Mitigated       | API auth is bearer-token based, not cookie-session based, so classic CSRF doesn't apply to it. The one cookie that exists — the refresh token — is `SameSite=Strict`, scoped to the single `/api/v1/auth/refresh/` path, which blocks cross-site use. |
@@ -91,9 +105,21 @@ design in `ARCHITECTURE.md` §8.
 - **No rate limiting configured yet** — highest-priority item for the next
   security pass, before Phase 8 (Assessments/exam APIs) starts — exam
   endpoints are exactly the kind of surface spec §49 wants throttled.
-- **Audit logging covers three actions** (tenant signup, academic year
-  creation, promotion) as a pattern demonstration, not the full list in
-  spec §50 yet.
+- **Audit logging covers five actions** (tenant signup, academic year
+  creation, promotion, question approve/reject) as a pattern demonstration,
+  not the full list in spec §50 yet.
+- **Frontend `npm audit` needs re-checking periodically, not just once.**
+  A new critical Next.js RCE (`next/og` `ImageResponse`) was disclosed
+  between this project's Phase 6 and Phase 7 sessions and was caught and
+  patched (16.3.5 → 16.3.8) only because the check was repeated. A
+  handful of `high` findings remain in dev/lint-only tooling
+  (`tailwindcss`'s and `eslint-config-next`'s transitive `chokidar`/
+  `braces`/`micromatch`/`fast-glob`) whose only available fix is a major
+  Tailwind v4 rewrite; `npm ls --omit=dev` confirms none of them reach the
+  production bundle, so this was judged lower priority than a disruptive
+  major-version jump — see PROJECT_MEMORY.md's 2026-09-26 note for the
+  full reasoning. Re-run `npm audit` at the start of any session that
+  touches dependencies.
 - **Uploads have no malware scanning**, and storage is local disk. The
   validators (extension, real MIME sniff, size) and the authenticated-only
   download path are built and tested (Phase 6), but a production deployment

@@ -1,9 +1,9 @@
 # PROJECT_MEMORY.md
 
 _Read this file first, every session — before touching code._
-_Last updated: 2026-09-23 — Roadmap position: Phase 6 (Content) done —
-flexible scoping, real file-upload security, student cross-group
-visibility. Next up: Phase 7 (Question Bank)._
+_Last updated: 2026-09-23 — Roadmap position: Phase 7 (Question Bank)
+done — review workflow, nobody approves their own question, MCQ/TRUE_FALSE
+backed by a real DB constraint. Next up: Phase 8 (Assessment Builder)._
 
 ## 1. Product vision
 
@@ -51,6 +51,7 @@ Tenant ──< Course (FK's Subject + Grade) ──< Chapter ──< Lesson
 Tenant ──< TeacherAssignment (Teacher × Course × Group[] — empty Group[] = whole grade)
 Tenant ──< Enrollment (Student × Group, denormalized AcademicYear — one per student per year)
 Tenant ──< Content (every scope field independently nullable — see below)
+Tenant ──< QuestionBank ──< Question ──< QuestionOption
 Tenant ──< AuditLog
 ```
 
@@ -70,9 +71,22 @@ one of its non-null scope fields* matches that context — an unset field
 imposes no restriction at all. This is what makes the spec's cross-group
 example work for real.
 
-**Designed, not yet built** (Phase 7 → Phase 9):
+`QuestionBank`/`Question` are built, including the review workflow
+(`review_status`: PENDING → APPROVED/REJECTED, spec §29) and `QuestionOption`
+for MCQ/TRUE_FALSE. `Question.bank` uses `on_delete=RESTRICT` — a bank with
+questions in it can't be deleted (archive it instead); `destroy()` in
+`QuestionViewSet` turns that into a clean `400`, not an unhandled `500`.
+`Question.accepted_answers`/`explanation`/`QuestionOption.is_correct` are
+staff-only today because the only consumers that exist are staff
+endpoints (`IsStaffMember` blocks STUDENT from the bank entirely) — the
+*real* test of "never leak the correct answer to a student" comes in
+Phase 9 when Attempts actually serve questions to a student mid-exam;
+that needs its own dedicated student-facing serializer that structurally
+omits these fields, the same way `apps/content/services.py` computes
+Content visibility rather than trusting a flag.
+
+**Designed, not yet built** (Phase 8 → Phase 9):
 ```
-QuestionBank ──< Question             (PENDING → APPROVED/REJECTED workflow)
 Assessment  (independent targeting: tenant/stage/grade/group/students;
              independent of Course/QuestionBank — spec §33)
   ──< ExamAttempt ──< Answer
@@ -99,18 +113,24 @@ parent. No business rule relies on frontend validation alone (spec §4).
 ## 7. Backend architecture
 
 Django 5 + DRF, modular monolith (`backend/apps/{common,tenants,accounts,
-academics,people,content,audit}` today — `people` holds
+academics,people,content,questions,audit}` today — `people` holds
 `TeacherAssignment`/`Enrollment`; `content` holds `Content` plus its own
 `validators.py` (extension/MIME/size checks) and `services.py`
-(visibility resolution) rather than cramming those into the serializer).
-Full layout and the request-lifecycle enforcement chain:
-`ARCHITECTURE.md` §2/§5. Auth: SimpleJWT, access token short-lived
-(30 min, returned in the JSON body), refresh token (7 days, rotated on
-use, blacklisted after rotation, delivered only as an `httpOnly`/
-`Secure`/`SameSite=Strict` cookie scoped to `/api/v1/auth/refresh/`). The
-tenant-scoped-relational-field pattern lives in
-`apps/common/serializers.py` as `TenantScopedModelSerializer`, shared by
-academics/people/content.
+(visibility resolution); `questions` holds `QuestionBank`/`Question`/
+`QuestionOption` and the review workflow). Full layout and the
+request-lifecycle enforcement chain: `ARCHITECTURE.md` §2/§5. Auth:
+SimpleJWT, access token short-lived (30 min, returned in the JSON body),
+refresh token (7 days, rotated on use, blacklisted after rotation,
+delivered only as an `httpOnly`/`Secure`/`SameSite=Strict` cookie scoped
+to `/api/v1/auth/refresh/`). The tenant-scoped-relational-field pattern
+lives in `apps/common/serializers.py` as `TenantScopedModelSerializer`,
+shared by academics/people/content/questions. `apps/common/permissions.py`
+now has two distinct "who can write" shapes plus a third "who can even
+read" shape — `IsAdminForWriteActions` (OWNER/ADMIN write, everyone
+reads), `IsStaffForWriteActions` (+ TEACHER can write), `IsStaffMember`
+(blocks STUDENT from reading at all — questions needed this, Content/
+Enrollment didn't) — pick the narrowest one that actually matches the
+resource, don't default to the most permissive one out of habit.
 
 ## 8. Frontend architecture
 
@@ -161,61 +181,73 @@ human review queue. Never an automatic cheating verdict (spec §46).
 `/api/v1/...`, versioned from day one. Current + planned endpoint list:
 `API.md`.
 
-## 12. Completed features (Phase 0–6)
+## 12. Completed features (Phase 0–7)
 
 - Tenant signup (`Tenant` + `OWNER` `User` created atomically); OWNER/ADMIN
   can now create TEACHER/STUDENT/ADMIN accounts via `/api/v1/users/`
 - JWT login / cookie-based refresh / `me` endpoint
-- Full tenant-isolation + role-permission enforcement chain, with **70
+- Full tenant-isolation + role-permission enforcement chain, with **91
   passing automated tests against real PostgreSQL**, including:
   - cross-tenant read of another tenant's object → 403/404, never in a list
   - a client-supplied `tenant` field on create is silently ignored
   - relationship-permission layer (a `Course`/`Term`/`TeacherAssignment`/
-    `Enrollment`/`Content` can't reference another tenant's related object)
-  - role-scoped read visibility on Enrollment (spec §12/§13) — extended
-    in Phase 6 to **Content**, per-student, computed from their live
-    academic context rather than a stored flag
+    `Enrollment`/`Content`/`Question` can't reference another tenant's
+    related object)
+  - role-scoped read visibility on Enrollment (spec §12/§13), Content
+    (per-student, computed from their live academic context), and
+    Questions (STUDENT blocked entirely; TEACHER sees own + APPROVED only)
   - Promotion is atomic: one invalid item in a batch rolls back every item
   - **file upload security** (spec §78): wrong extension rejected, real
     file bytes not matching the claimed type rejected (MIME-sniffed, not
     filename-trusted), oversized files rejected, a crafted `../../`-style
-    filename never survives into the stored path, a Teacher can't edit
-    another Teacher's uploaded content, an unauthenticated request can't
-    download anything
+    filename never survives into the stored path
+  - **question review workflow** (spec §29): nobody (not even OWNER/ADMIN)
+    can approve a question they authored themselves; editing a
+    previously-approved question sends it back to PENDING; a MCQ/
+    TRUE_FALSE question can never have zero or two+ correct options —
+    backed by an actual Postgres partial-unique constraint, not just a
+    serializer check, and tested by writing straight through the ORM to
+    prove the constraint itself holds, not just the API path
 - Academic Year / Term / Stage / Grade / Group / Subject / Course /
-  Chapter / Lesson / TeacherAssignment / Enrollment / **Content**: models
-  with tenant-scoped constraints, full CRUD API, tenant-scoped serializers
+  Chapter / Lesson / TeacherAssignment / Enrollment / Content /
+  **QuestionBank / Question / QuestionOption**: models with tenant-scoped
+  constraints, full CRUD API, tenant-scoped serializers
 - **Promotion** (`POST /api/v1/enrollments/promote/`): PROMOTE / REPEAT /
   TRANSFER / GRADUATE, `dry_run` flag doubles as the "Preview" step
 - Backend fully lint-clean (`flake8`, `black`), zero pending migrations
 - Frontend: RTL shell, login/signup flow with silent refresh, Academic
   Years / Terms / Courses / Team / Teacher Assignments / Enrollments /
-  **Content** pages. Content's create form switches between a file input,
-  a URL input, or a textarea depending on the chosen type, and "open"
-  correctly branches between downloading a real file and showing a link
-  or plain text.
+  Content / **Question Banks / Questions** pages. The Question form
+  switches its fields (options list, accepted-answers box, nothing extra)
+  per question type and lets OWNER/ADMIN approve or reject straight from
+  the list; dynamic MCQ options use React Hook Form's `useFieldArray`.
 - Frontend fully lint-clean (`eslint` flat config), builds cleanly,
-  `npm audit` = 0 vulnerabilities
+  `npm audit` = 0 vulnerabilities **as of each phase's own check** — see
+  §14's 2026-09-26 note: this needs re-checking periodically, not just once
 - `docker-compose.yml`, multi-stage Dockerfiles, CI workflow — **the
   Docker build itself still has not been run** in the environment this
   was built in (no Docker Hub network access there)
 
 ## 13. Pending features (rest of the roadmap)
 
-Question Bank + review workflow, Assessment Builder (6-step wizard) +
-targeting + scheduling + randomization, Exam engine (attempts/timer/
-autosave/server-side scoring), Anti-cheat event tracking + suspicion
-dashboard, all three role dashboards (beyond the current placeholder
-shell), Reports, rate limiting, full audit coverage (currently 3 of ~10
-listed actions), onboarding wizard, tenant branding UI, bulk operations,
-accessibility pass, production deployment, malware/antivirus scanning for
-uploads (`Content.scan_status` is the hook, nothing populates it yet).
-**Promotion has no frontend UI yet** — a real, tested backend endpoint
-with no page calling it. **Content's frontend scope form exposes 5 of 9
-possible scope fields** (stage/grade/group/subject/course — chapter,
-lesson, academic_year, term are supported by the API but not in the form
-yet); add them if a real workflow needs finer scoping than "which
-course," which hasn't come up yet.
+Assessment Builder (6-step wizard) + targeting + scheduling +
+randomization, Exam engine (attempts/timer/autosave/server-side scoring —
+and a **student-facing Question serializer that structurally omits
+correct-answer fields**, not just one that's been told not to render
+them, see §5), Anti-cheat event tracking + suspicion dashboard, all three
+role dashboards (beyond the current placeholder shell), Reports, rate
+limiting, full audit coverage (currently 5 of ~10 listed actions —
+question approve/reject added in Phase 7, upload/delete still missing),
+onboarding wizard, tenant branding UI, bulk operations, accessibility
+pass, production deployment, malware/antivirus scanning for uploads.
+**Promotion has no frontend UI yet.** **Content's frontend scope form
+exposes 5 of 9 possible scope fields** (chapter/lesson/academic_year/term
+are API-only so far). **TRUE_FALSE question editing**: the frontend
+pre-fills "صح"/"خطأ" as fixed options on create but doesn't yet stop a
+teacher from freely editing that text on an *edit* flow (there's no edit
+UI for existing questions yet at all, only create) — worth a guard if/when
+edit is built, so a TRUE_FALSE question can't drift into an arbitrary
+2-option MCQ through editing.
 
 ## 14. Architecture decisions log
 
@@ -305,6 +337,64 @@ course," which hasn't come up yet.
   that also accepts multipart input needs this same guard**, or a test
   uploading a file without explicitly setting that field will pass while
   quietly shipping the wrong value.
+- **2026-09-23 — "Nobody approves their own question" applies to
+  OWNER/ADMIN too, not just TEACHER.** Spec §29's literal wording is
+  about Teachers; this codebase applies the same rule regardless of role,
+  since "don't review your own work" is a stronger, simpler-to-defend
+  principle than "Teachers specifically can't, but Admins somehow can."
+  If that turns out to be too strict in practice (a solo Owner with no
+  second reviewer, say), the fix is a product decision (e.g. a
+  "self-publish" flag), not quietly loosening the review endpoint.
+- **2026-09-23 — `QuestionOption`'s "exactly one correct answer" is a
+  real partial-unique constraint** (`UniqueConstraint(fields=["question"],
+  condition=Q(is_correct=True))`), not just serializer validation —
+  tested by writing a second `is_correct=True` row straight through the
+  ORM, bypassing the API entirely, to prove the database itself refuses
+  it. Keep reaching for an actual DB constraint first for any future
+  "exactly one of N rows" rule; add the serializer-level check on top
+  only so the failure mode is a clean 400 instead of a raw `IntegrityError`.
+- **2026-09-23 — `Question.bank` uses `on_delete=RESTRICT`**, and
+  `QuestionViewSet.destroy()` catches the resulting `RestrictedError` and
+  returns a clean `400` ("archive instead of delete"). `RESTRICT`/
+  `PROTECT` on_delete choices need this same catch-and-convert treatment
+  wherever they're used — Django raises a plain exception, DRF's default
+  handler doesn't know what to do with it, so without the override it's
+  an unhandled 500, not a helpful API error.
+- **2026-09-26 — Environment note, not a code decision, but important:**
+  partway through this phase, the sandbox's working directory
+  (`/home/claude`) was wiped by a container reset — all uncommitted *and
+  committed* git history that only existed there was gone. The project
+  was fully recovered by unzipping the **last delivered zip** from
+  `/mnt/user-data/outputs/`, which (a) is **not** wiped by a container
+  reset the way the working container is, and (b) still had the complete
+  git history up through the last successful `present_files` call, since
+  the zip includes `.git/`. Everything after that last delivery (code
+  written, tests debugged, docs edited) had to be redone from scratch —
+  which was fast only because this file, the commit messages, and the
+  conversation itself already recorded exactly what the correct end
+  state looked like. **Lesson for pacing future phases:** commit and
+  re-deliver (zip + `present_files`) more often, not just once per phase
+  at the very end — the delivered zip is the only true persistence
+  boundary here, not the working container, and not a git commit that
+  hasn't been packaged and handed over yet.
+- **2026-09-26 — `npm audit` is a check to repeat, not a box to tick
+  once.** Rebuilding this exact dependency set from the same
+  `package.json` days later surfaced a **new critical Next.js RCE**
+  (`next/og` `ImageResponse`) that did not exist at Phase 6's check —
+  patched by bumping to the latest 16.3.x patch (16.3.8) rather than a
+  major version. A handful of `high`-severity findings remained
+  (`chokidar`/`braces`/`micromatch`/`fast-glob`, pulled in transitively by
+  `tailwindcss` and `eslint-config-next`) whose fix path was a major
+  Tailwind v4 rewrite; `npm ls --omit=dev` confirmed none of those
+  packages appear in the production dependency tree at all — they're
+  build-time/lint-time only, never bundled into what ships to a browser,
+  and nothing here ever feeds untrusted input into their glob-matching
+  code. Judged not worth a risky, disproportionate major-version rewrite
+  for that risk profile; documented in SECURITY.md instead of either
+  silently ignored or reflexively "fixed." Re-run `npm audit` (and
+  `pip list --outdated`-style thinking for the backend) at the start of
+  any future session that touches dependencies, not just once at
+  project start.
 
 ## 15. Known limitations (today, stated plainly)
 
@@ -328,30 +418,41 @@ course," which hasn't come up yet.
   `docker build` has never actually been run (see §12).
 - Promotion has a real, tested backend endpoint and no frontend UI yet
   (see §13).
-- TeacherAssignment's own list (not Enrollment's/Content's) is still
-  readable by any tenant member, not scoped to "only see your own
+- TeacherAssignment's own list (not Enrollment's/Content's/Question's) is
+  still readable by any tenant member, not scoped to "only see your own
   assignments." Content's TEACHER-role read visibility is also tenant-wide
-  today (only the STUDENT-role visibility is computed per-person) — lower
-  priority than the Enrollment/Content-for-Student work since this is
-  administrative metadata and creator-only, not other people's private
-  data (and write access to others' content is already object-scoped via
-  `IsCreatorOrAdmin`), but worth tightening alongside Reports/Dashboards
-  later if it turns out to matter.
+  (only STUDENT visibility is computed per-person) — lower priority than
+  the student-facing work since this is administrative/creator-owned
+  metadata, not other people's private data, but worth tightening
+  alongside Reports/Dashboards later if it turns out to matter.
+- Question edit has no frontend UI yet (create only) — see §13.
+- A container reset mid-Phase-7 wiped the working directory once; see
+  §14's 2026-09-26 note. Nothing about the *delivered* project was lost
+  (the last zip had full git history), but it's worth remembering this
+  can happen and pacing deliveries accordingly.
 
 ## 16. Next steps
 
-Pick up at **Phase 7 — Questions**: `QuestionBank` (independent entity,
-spec §28) and `Question` (type/difficulty/topic/points/status) with the
-PENDING → Admin review → APPROVED/REJECTED workflow (spec §29) — a
-Teacher can create a Question but explicitly **cannot approve their own**
-(spec §29's own words), which is a role+ownership check in the same
-shape as `IsCreatorOrAdmin` (`apps/common/permissions.py`) but stricter:
-here the *creator themselves* must be excluded even if they're also
-staff-permitted to write, not just non-owners. Correct answers are part
-of a Question but must never be serialized to a STUDENT-facing read (spec
-§41/§44 — this matters more once Assessments/Attempts consume Questions
-in Phase 8/9, but the serializer-level exclusion should exist from the
-start here so it's never accidentally exposed later). Same recipe as
-every phase so far: model + tenant-scoped constraints → tenant-scoped
-serializer → tested viewset → frontend page. Say "كمل" / "continue" to
+Pick up at **Phase 8 — Assessments**: `Assessment` as an entity
+independent of both `Course` and `QuestionBank` (spec §33 is explicit
+about this — an Assessment pulls questions *from* banks and can target
+students outside a single course's roster, so it must not be modeled as
+a child of either), with its own **targeting** (tenant/stage/grade/group/
+multiple-groups/specific-students — reuse the same kind of
+independently-optional-scope thinking `Content` already established in
+Phase 6, not a copy of `TeacherAssignment`'s Course-keyed shape), a
+**6-step builder** (basic info → questions → targeting → schedule →
+settings → review/publish, spec §34), and **question/option
+randomization settings** stored on the Assessment (the actual
+randomization logic belongs to Phase 9's attempt-serving code, not here —
+this phase just needs the settings to exist and be configurable). Start
+designing the **student-facing Question shape** now even though Phase 9
+consumes it (§5/§13) — getting the "never include `is_correct`/
+`accepted_answers`/`explanation`" serializer right while building the
+very first thing that will use it is safer than retrofitting it onto
+code that already (mis)trusts the staff shape. Same recipe as every phase
+so far: model + tenant-scoped constraints → tenant-scoped serializer →
+tested viewset → frontend page. Before writing new code, re-run `npm
+audit` and re-check pinned backend versions (§14, 2026-09-26) — enough
+time may have passed for new advisories again. Say "كمل" / "continue" to
 proceed.

@@ -144,7 +144,43 @@ permission chain as the detail view (so an out-of-scope student gets
 attachment for file types, `{"external_url": ...}` for links, or
 `{"text_body": ...}` for text types. There is no public `/media/` URL.
 
+## Questions
+
+### `GET/POST /api/v1/question-banks/`, `GET/PATCH/DELETE /api/v1/question-banks/<id>/`
+**Staff-only — STUDENT gets `403` on this endpoint entirely**, not just on
+writes. OWNER/ADMIN/TEACHER may create; a TEACHER may only modify a bank
+they created. Deleting a bank that has questions returns `400` (not an
+unhandled 500) — archive it (`is_archived`) instead. Fields: `name`,
+`description`, `subject` (scoped), `grade` (scoped), `is_archived`.
+
+### `GET/POST /api/v1/questions/`, `GET/PATCH/DELETE /api/v1/questions/<id>/`
+Also staff-only. **Read is further scoped for TEACHER**: their own
+questions at any `review_status`, plus every tenant-wide `APPROVED`
+question — not other teachers' `PENDING`/`REJECTED` drafts (those return
+`404` on direct fetch, same as a cross-tenant object). OWNER/ADMIN see
+everything.
+
+Fields: `bank` (scoped), `text`, `question_type` (`MCQ`, `TRUE_FALSE`,
+`SHORT_ANSWER`, `ESSAY`), `difficulty`, `topic`, `points`,
+`accepted_answers` (list of strings, `SHORT_ANSWER` only),
+`explanation`, `options` (nested list of `{text, is_correct, order}`,
+`MCQ`/`TRUE_FALSE` only — exactly one `is_correct: true`, enforced by
+both the serializer and a database constraint), and the read-only review
+fields `review_status`, `reviewed_by`, `reviewed_at`, `review_note`.
+
+A question is created with `review_status: PENDING` always — it's never a
+writable field. Editing a previously-`APPROVED` question's content resets
+it to `PENDING`. `options` can be omitted entirely on a partial update
+that isn't changing them (a resubmitted, empty `options` *does* clear them
+— the two are different).
+
+### `POST /api/v1/questions/<id>/approve/`, `POST /api/v1/questions/<id>/reject/`
+OWNER/ADMIN only. Both return `403` if the caller authored the question
+themselves — **regardless of role**, not just for TEACHER (see
+PROJECT_MEMORY.md's Phase 7 decisions for why this is stricter than the
+spec's literal wording). `reject` accepts an optional `review_note` in
+the body.
+
 ## Planned (not built yet — see PROJECT_MEMORY.md roadmap)
 
-`/question-banks`, `/questions`, `/assessments`, `/attempts`, `/results`,
-`/reports`, `/audit`, `/security`.
+`/assessments`, `/attempts`, `/results`, `/reports`, `/audit`, `/security`.
