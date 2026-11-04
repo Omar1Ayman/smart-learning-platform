@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/", include("apps.people.urls")),  # /teacher-assignments/, /enrollments/
     path("api/v1/", include("apps.content.urls")),  # /content/, /content/<id>/download/
     path("api/v1/", include("apps.questions.urls")),  # /question-banks/, /questions/
+    path("api/v1/", include("apps.assessments.urls")),  # /assessments/ + questions/targets
 ]
 
 # Deliberately NOT serving MEDIA_ROOT via django.conf.urls.static here,

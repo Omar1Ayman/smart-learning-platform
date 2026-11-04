@@ -4,6 +4,7 @@ from factory.django import DjangoModelFactory
 from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject, Term
 from apps.accounts.models import User
 from apps.people.models import Enrollment, TeacherAssignment
+from apps.assessments.models import Assessment
 from apps.questions.models import Question, QuestionBank
 from apps.tenants.models import Tenant
 
@@ -196,3 +197,12 @@ class QuestionFactory(DjangoModelFactory):
         if extracted and create:
             self.review_status = Question.ReviewStatus.APPROVED
             self.save(update_fields=["review_status"])
+
+
+class AssessmentFactory(DjangoModelFactory):
+    class Meta:
+        model = Assessment
+
+    tenant = factory.SubFactory(TenantFactory)
+    title = factory.Sequence(lambda n: f"Assessment {n}")
+    assessment_type = Assessment.AssessmentType.QUIZ

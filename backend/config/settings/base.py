@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.people",
     "apps.content",
     "apps.questions",
+    "apps.assessments",
     "apps.audit",
 ]
 

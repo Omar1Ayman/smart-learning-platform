@@ -1,9 +1,10 @@
 # PROJECT_MEMORY.md
 
 _Read this file first, every session — before touching code._
-_Last updated: 2026-09-23 — Roadmap position: Phase 7 (Question Bank)
-done — review workflow, nobody approves their own question, MCQ/TRUE_FALSE
-backed by a real DB constraint. Next up: Phase 8 (Assessment Builder)._
+_Last updated: 2026-10-26 — Roadmap position: Phase 7 (Question Bank) done.
+**Phase 8 (Assessment Builder) is IN PROGRESS: backend built and tested (115
+tests passing) but NOT yet documented below, and its frontend (the 6-step
+wizard) is NOT started.** See the "Phase 8 work in progress" note in §16._
 
 ## 1. Product vision
 
@@ -432,6 +433,31 @@ edit is built, so a TRUE_FALSE question can't drift into an arbitrary
   can happen and pacing deliveries accordingly.
 
 ## 16. Next steps
+
+### Phase 8 work in progress (delivered mid-phase on request)
+
+**Done and tested (115 backend tests, flake8 clean):** `apps/assessments/` —
+`Assessment` (10 types, DRAFT/PUBLISHED/CLOSED/ARCHIVED, schedule fields,
+randomization *settings*), `AssessmentQuestion` (links APPROVED questions
+only; `RESTRICT` on the question FK), `AssessmentTarget` (TENANT/STAGE/
+GRADE/GROUP/STUDENT rows — **OR across rows**, deliberately the opposite
+of Content's AND-across-fields; a DB CheckConstraint guarantees exactly the
+field matching `target_type` is set), a `publish` action (needs >=1
+question, >=1 target, every linked question still APPROVED), and
+role-scoped visibility (OWNER/ADMIN all; TEACHER own + PUBLISHED; STUDENT
+only PUBLISHED + targeted, via a lean serializer with no question data).
+Endpoints: `/assessments/`, `/assessment-questions/`, `/assessment-targets/`,
+`/assessments/<id>/publish/`.
+
+**Not done:** the 6-step builder UI (basic info -> questions -> targeting ->
+schedule -> settings -> review/publish, spec #34), Phase 8 entries in
+ARCHITECTURE.md / SECURITY.md / API.md, and a re-run of the frontend
+build/lint/`npm audit` after the environment was rebuilt (do `npm install`
+then `npm audit` first — see §14, 2026-09-26). A student with no
+Enrollment sees no assessments at all, even TENANT-wide ones (same rule as
+Content) — a deliberate simplification worth revisiting.
+
+### Original Phase 8 plan
 
 Pick up at **Phase 8 — Assessments**: `Assessment` as an entity
 independent of both `Course` and `QuestionBank` (spec §33 is explicit
