@@ -1,4 +1,6 @@
 [build-system]
+[tool.setuptools.packages.find]
+include = ["apps*", "config*"]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
