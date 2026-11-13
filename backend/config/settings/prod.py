@@ -141,5 +141,13 @@ LOGGING = {
     },
 }
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STORAGES = {
+    **STORAGES,  # keep base.py's "default" storage (FileSystemStorage for media)
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
+# Serve static files directly from Django's app finders at request time.
+# Required on Vercel because collectstatic doesn't run during build.
 WHITENOISE_USE_FINDERS = True
