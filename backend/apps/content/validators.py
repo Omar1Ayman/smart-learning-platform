@@ -17,7 +17,7 @@ from django.core.exceptions import ValidationError
 
 try:
     import magic
-
+    _HAS_MAGIC = True
     _HAS_MAGIC = True
 except ImportError:  # pragma: no cover
     _HAS_MAGIC = False

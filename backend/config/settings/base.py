@@ -92,6 +92,9 @@ DATABASES = {
         "HOST": config("DB_HOST", default="localhost"),
         "PORT": config("DB_PORT", default="5432"),
         "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=60, cast=int),
+         "OPTIONS": {
+            "sslmode": "require",
+        },
     }
 }
 
