@@ -140,3 +140,6 @@ LOGGING = {
         },
     },
 }
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+WHITENOISE_USE_FINDERS = True
