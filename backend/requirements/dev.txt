@@ -4,3 +4,4 @@
 # just delegates — one source of truth for dev tooling.
 -r base.txt
 -e .[dev]
+Pillow
