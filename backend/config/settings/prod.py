@@ -8,6 +8,10 @@ from .base import BASE_DIR
 DEBUG = False
 MEDIA_ROOT = Path(config("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
+# Require SSL for production database connections (Neon, etc.)
+DATABASES["default"]["OPTIONS"] = {
+    "sslmode": "require",
+}
 # Fail loudly at boot rather than silently run with the dev placeholder key.
 SECRET_KEY = config("DJANGO_SECRET_KEY")
 if len(SECRET_KEY) < 50 or SECRET_KEY in {
