@@ -1,6 +1,7 @@
 """Wave 14 — question edit guards."""
 
 import pytest
+
 from apps.assessments.models import AssessmentQuestion
 from apps.exam_engine.models import ExamAttempt
 from apps.questions.models import Question
@@ -75,9 +76,7 @@ def test_editing_question_text_is_allowed(api_client):
     question = QuestionFactory(bank=bank, tenant=bank.tenant, created_by=teacher)
 
     client = login_as(api_client, teacher)
-    resp = client.patch(
-        f"/api/v1/questions/{question.id}/", {"text": "نص جديد"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/questions/{question.id}/", {"text": "نص جديد"}, format="json")
     assert resp.status_code == 200, resp.data
     question.refresh_from_db()
     assert question.text == "نص جديد"
@@ -89,9 +88,7 @@ def test_editing_approved_question_resets_review_status(api_client):
     question = QuestionFactory(bank=bank, tenant=bank.tenant, created_by=teacher, approved=True)
 
     client = login_as(api_client, teacher)
-    resp = client.patch(
-        f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json")
     assert resp.status_code == 200
     question.refresh_from_db()
     assert question.review_status == Question.ReviewStatus.PENDING
@@ -107,9 +104,7 @@ def test_question_linked_to_published_exam_cannot_be_edited(api_client):
     )
 
     client = login_as(api_client, teacher)
-    resp = client.patch(
-        f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json")
 
     assert resp.status_code == 400
     question.refresh_from_db()
@@ -135,9 +130,7 @@ def test_question_with_attempt_history_cannot_be_edited(api_client):
     )
 
     client = login_as(api_client, teacher)
-    resp = client.patch(
-        f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/questions/{question.id}/", {"text": "تعديل"}, format="json")
 
     assert resp.status_code == 400
     question.refresh_from_db()

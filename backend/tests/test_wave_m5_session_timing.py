@@ -4,7 +4,6 @@ The `today` endpoint must gate `can_start` on time-of-day, and
 `from-schedule` must reject early/late starts unless `force=true`.
 """
 
-from datetime import time
 from datetime import timedelta as td
 
 import pytest
@@ -15,10 +14,10 @@ from apps.attendance.models import GroupSchedule
 from .conftest import login_as
 from .factories import (
     GroupFactory,
-    TeacherUserFactory,  
-    TenantFactory,
+    TeacherUserFactory,
     UserFactory,
 )
+
 pytestmark = pytest.mark.django_db
 
 
@@ -52,6 +51,8 @@ def _make_schedule(group, *, start_offset_minutes=0, teacher=None):
         teacher=teacher,
         is_active=True,
     )
+
+
 def test_today_state_ready_within_window(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
@@ -158,6 +159,8 @@ def test_from_schedule_starts_directly_when_ready(api_client):
         format="json",
     )
     assert r.status_code == 201
+
+
 def test_today_state_missed_more_than_2h_late(api_client):
     """Batch 20.1: >2h late = "missed", not "late"."""
     group = GroupFactory()

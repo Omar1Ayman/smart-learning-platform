@@ -43,7 +43,9 @@ def test_duplicate_enrollment_same_student_same_year_is_rejected(api_client):
     group.academic_year.activate()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
     student = StudentUserFactory(tenant=group.tenant)
-    EnrollmentFactory(student=student, group=group, tenant=group.tenant, academic_year=group.academic_year)
+    EnrollmentFactory(
+        student=student, group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
 
     another_group_same_year = GroupFactory(
         grade=group.grade, academic_year=group.academic_year, tenant=group.tenant
@@ -135,8 +137,12 @@ def test_student_sees_only_their_own_enrollment(api_client):
     group = GroupFactory()
     student_a = StudentUserFactory(tenant=group.tenant)
     student_b = StudentUserFactory(tenant=group.tenant)
-    EnrollmentFactory(student=student_a, group=group, tenant=group.tenant, academic_year=group.academic_year)
-    EnrollmentFactory(student=student_b, group=group, tenant=group.tenant, academic_year=group.academic_year)
+    EnrollmentFactory(
+        student=student_a, group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
+    EnrollmentFactory(
+        student=student_b, group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
 
     client = login_as(api_client, student_a)
     resp = client.get("/api/v1/enrollments/")
@@ -158,12 +164,16 @@ def test_owner_sees_every_enrollment_in_tenant(api_client):
 
 def test_teacher_with_narrowed_groups_sees_only_those_groups(api_client):
     group_a = GroupFactory()
-    group_b = GroupFactory(grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant)
+    group_b = GroupFactory(
+        grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant
+    )
     teacher = TeacherUserFactory(tenant=group_a.tenant)
     from .factories import CourseFactory
 
     course = CourseFactory(grade=group_a.grade, tenant=group_a.tenant)
-    assignment = TeacherAssignment.objects.create(tenant=group_a.tenant, teacher=teacher, course=course)
+    assignment = TeacherAssignment.objects.create(
+        tenant=group_a.tenant, teacher=teacher, course=course
+    )
     assignment.groups.set([group_a])
 
     enrollment_a = EnrollmentFactory(
@@ -181,7 +191,9 @@ def test_teacher_with_narrowed_groups_sees_only_those_groups(api_client):
 
 def test_teacher_with_whole_grade_assignment_sees_every_group_in_grade(api_client):
     group_a = GroupFactory()
-    group_b = GroupFactory(grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant)
+    group_b = GroupFactory(
+        grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant
+    )
     teacher = TeacherUserFactory(tenant=group_a.tenant)
     from .factories import CourseFactory
 
@@ -209,12 +221,16 @@ def test_teacher_with_no_assignment_sees_nothing(api_client):
 
 def test_teacher_cannot_directly_fetch_an_out_of_scope_enrollment_by_id(api_client):
     group_a = GroupFactory()
-    group_b = GroupFactory(grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant)
+    group_b = GroupFactory(
+        grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant
+    )
     teacher = TeacherUserFactory(tenant=group_a.tenant)
     from .factories import CourseFactory
 
     course = CourseFactory(grade=group_a.grade, tenant=group_a.tenant)
-    assignment = TeacherAssignment.objects.create(tenant=group_a.tenant, teacher=teacher, course=course)
+    assignment = TeacherAssignment.objects.create(
+        tenant=group_a.tenant, teacher=teacher, course=course
+    )
     assignment.groups.set([group_a])
 
     out_of_scope = EnrollmentFactory(
@@ -225,6 +241,7 @@ def test_teacher_cannot_directly_fetch_an_out_of_scope_enrollment_by_id(api_clie
     resp = client.get(f"/api/v1/enrollments/{out_of_scope.id}/")
     assert resp.status_code == 404  # not in this teacher's get_queryset() at all
 
+
 def test_enrollment_list_includes_readable_student_and_group(api_client):
     """The Wave 15 serializer expansion: rather than returning bare UUIDs
     the frontend has to resolve client-side, we include student_email,
@@ -232,7 +249,9 @@ def test_enrollment_list_includes_readable_student_and_group(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
     student = StudentUserFactory(tenant=group.tenant, first_name="Ali", last_name="Hassan")
-    EnrollmentFactory(student=student, group=group, tenant=group.tenant, academic_year=group.academic_year)
+    EnrollmentFactory(
+        student=student, group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
 
     client = login_as(api_client, owner)
     resp = client.get("/api/v1/enrollments/")

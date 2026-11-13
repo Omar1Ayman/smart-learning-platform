@@ -63,14 +63,14 @@ ACTION_LABELS = {
     "attempt.reopened": "إعادة فتح محاولة",
     "attempt.voided": "إلغاء محاولة",
     "attempts.bulk_graded": "تصحيح محاولات جماعي",
-        # ---- academic year lifecycle ----
+    # ---- academic year lifecycle ----
     "enrollment.promoted": "ترقية تسجيل",
-    "enrollment.transitioned": "نقل بين الترمات",   
+    "enrollment.transitioned": "نقل بين الترمات",
     "academic_year.created": "إضافة سنة دراسية",
-    "academic_year.prepared": "تجهيز سنة دراسية جديدة",           
-    "academic_year.students_promoted": "ترقية الطلاب",             
-    "academic_year.archived": "أرشفة سنة دراسية",                  
-    "academic_year.activated": "تفعيل سنة دراسية",                 
+    "academic_year.prepared": "تجهيز سنة دراسية جديدة",
+    "academic_year.students_promoted": "ترقية الطلاب",
+    "academic_year.archived": "أرشفة سنة دراسية",
+    "academic_year.activated": "تفعيل سنة دراسية",
     # ---- attendance ----
     "attendance_session.created": "إنشاء جلسة حضور",
     "attendance_session.opened": "فتح جلسة حضور",

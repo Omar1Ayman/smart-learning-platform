@@ -36,9 +36,7 @@ class Command(BaseCommand):
         free = Plan.objects.filter(key="free", is_active=True).first()
         if free is None:
             self.stderr.write(
-                self.style.ERROR(
-                    "No free plan found. Run `python manage.py seed_plans` first."
-                )
+                self.style.ERROR("No free plan found. Run `python manage.py seed_plans` first.")
             )
             return
 
@@ -55,16 +53,8 @@ class Command(BaseCommand):
             except Subscription.DoesNotExist:
                 pass
 
-            students = (
-                User.objects.for_tenant(tenant)
-                .filter(role=User.Role.STUDENT)
-                .count()
-            )
-            teachers = (
-                User.objects.for_tenant(tenant)
-                .filter(role=User.Role.TEACHER)
-                .count()
-            )
+            students = User.objects.for_tenant(tenant).filter(role=User.Role.STUDENT).count()
+            teachers = User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER).count()
 
             overrides: dict = {}
             if free.max_students is not None and students >= free.max_students:
@@ -97,13 +87,9 @@ class Command(BaseCommand):
                     )
                 )
             else:
-                self.stdout.write(
-                    f"  ✓ {tenant.name}: on free plan (within limits)"
-                )
+                self.stdout.write(f"  ✓ {tenant.name}: on free plan (within limits)")
 
         self.stdout.write("")
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Done. Created: {created}, Grandfathered: {grandfathered}"
-            )
+            self.style.SUCCESS(f"Done. Created: {created}, Grandfathered: {grandfathered}")
         )

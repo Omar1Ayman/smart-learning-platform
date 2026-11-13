@@ -17,8 +17,11 @@ rejected it with "الترم المختار لا ينتمي للسنة الدر�
 a test-fixture bug — the production code was right. The term is now
 created against the same year the course uses.
 """
+
 import pytest
+
 from apps.academics.models import Course
+
 from .conftest import login_as
 from .factories import (
     AcademicYearFactory,

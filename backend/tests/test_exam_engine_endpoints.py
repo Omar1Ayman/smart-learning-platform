@@ -4,7 +4,6 @@ Also verifies cross-student isolation (A cannot reach B's attempt)."""
 import pytest
 
 from apps.assessments.models import AssessmentTarget
-from apps.exam_engine.models import ExamAttempt
 from apps.questions.models import Question
 
 from .conftest import login_as
@@ -44,7 +43,9 @@ def _setup_assessment_with_question():
     q.options.create(tenant=group.tenant, text="B", is_correct=False, order=2)
     from apps.assessments.models import AssessmentQuestion
 
-    AssessmentQuestion.objects.create(tenant=group.tenant, assessment=assessment, question=q, order=1)
+    AssessmentQuestion.objects.create(
+        tenant=group.tenant, assessment=assessment, question=q, order=1
+    )
     return student, assessment, q
 
 
@@ -149,7 +150,7 @@ def test_result_before_submit_returns_400(api_client):
     attempt_id = client.post(f"/api/v1/assessments/{assessment.id}/start/").data["id"]
     resp = client.get(f"/api/v1/attempts/{attempt_id}/result/")
     assert resp.status_code == 400
-    
+
 
 def test_is_passed_true_when_above_passing_score(api_client):
     """Different from the flow test above: here passing_score IS set, so

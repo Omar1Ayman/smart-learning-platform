@@ -109,23 +109,20 @@ class AcademicYear(TenantScopedModel):
         """تفعيل السنة — يُغلق السنة النشطة الحالية تلقائياً."""
         if self.status != self.Status.DRAFT:
             raise ValidationError(
-                f"لا يمكن تفعيل سنة بحالة {self.get_status_display()}. "
-                "يجب أن تكون في حالة DRAFT."
+                f"لا يمكن تفعيل سنة بحالة {self.get_status_display()}. يجب أن تكون في حالة DRAFT."
             )
 
         with transaction.atomic():
             # أغلق السنة النشطة الحالية (إن وُجدت)
-            AcademicYear.objects.for_tenant(self.tenant).filter(
-                status=self.Status.ACTIVE
-            ).exclude(pk=self.pk).update(status=self.Status.CLOSING)
+            AcademicYear.objects.for_tenant(self.tenant).filter(status=self.Status.ACTIVE).exclude(
+                pk=self.pk
+            ).update(status=self.Status.CLOSING)
 
             # فعّل هذه السنة
             self.status = self.Status.ACTIVE
             self.is_active = True  # للتوافق القديم
             self.activated_at = timezone.now()
-            self.save(
-                update_fields=["status", "is_active", "activated_at", "updated_at"]
-            )
+            self.save(update_fields=["status", "is_active", "activated_at", "updated_at"])
 
     def close(self, *, archive: bool = True, by_user=None):
         """إغلاق السنة.
@@ -135,14 +132,10 @@ class AcademicYear(TenantScopedModel):
             by_user: المستخدم الذي قام بالإغلاق
         """
         if self.status not in (self.Status.ACTIVE, self.Status.CLOSING):
-            raise ValidationError(
-                f"لا يمكن إغلاق سنة بحالة {self.get_status_display()}."
-            )
+            raise ValidationError(f"لا يمكن إغلاق سنة بحالة {self.get_status_display()}.")
 
         with transaction.atomic():
-            self.status = (
-                self.Status.ARCHIVED if archive else self.Status.CLOSING
-            )
+            self.status = self.Status.ARCHIVED if archive else self.Status.CLOSING
             self.closed_at = timezone.now()
             self.closed_by = by_user
             self.is_active = False
@@ -159,6 +152,8 @@ class AcademicYear(TenantScopedModel):
     def is_writable(self) -> bool:
         """هل يمكن التعديل على هذه السنة؟"""
         return self.status != self.Status.ARCHIVED
+
+
 class Term(TenantScopedModel):
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name="terms")
     name = models.CharField(max_length=50)  # e.g. "Term 1"
@@ -191,9 +186,7 @@ class Stage(TenantScopedModel):
         db_table = "academics_stage"
         ordering = ["order", "name"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["tenant", "name"], name="uniq_stage_name_per_tenant"
-            ),
+            models.UniqueConstraint(fields=["tenant", "name"], name="uniq_stage_name_per_tenant"),
         ]
 
     def __str__(self):
@@ -209,9 +202,7 @@ class Grade(TenantScopedModel):
         db_table = "academics_grade"
         ordering = ["stage", "order"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["stage", "name"], name="uniq_grade_name_per_stage"
-            ),
+            models.UniqueConstraint(fields=["stage", "name"], name="uniq_grade_name_per_stage"),
         ]
 
     def __str__(self):
@@ -255,10 +246,7 @@ class Grade(TenantScopedModel):
             return None
 
         return (
-            Grade.objects.for_tenant(self.tenant)
-            .filter(stage=next_stage)
-            .order_by("order")
-            .first()
+            Grade.objects.for_tenant(self.tenant).filter(stage=next_stage).order_by("order").first()
         )
 
     def is_final(self) -> bool:
@@ -268,9 +256,7 @@ class Grade(TenantScopedModel):
     def is_first(self) -> bool:
         """هل هذا أول صف في المؤسسة؟ (يعني طلابه جدد تماماً)"""
         # أول صف في أول مرحلة بـ order
-        first_stage = (
-            Stage.objects.for_tenant(self.tenant).order_by("order").first()
-        )
+        first_stage = Stage.objects.for_tenant(self.tenant).order_by("order").first()
         if first_stage is None:
             return False
         first_grade = (
@@ -280,6 +266,8 @@ class Grade(TenantScopedModel):
             .first()
         )
         return first_grade is not None and first_grade.pk == self.pk
+
+
 class Group(TenantScopedModel):
     grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name="groups")
     academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name="groups")
@@ -308,9 +296,7 @@ class Subject(TenantScopedModel):
         db_table = "academics_subject"
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["tenant", "name"], name="uniq_subject_name_per_tenant"
-            ),
+            models.UniqueConstraint(fields=["tenant", "name"], name="uniq_subject_name_per_tenant"),
         ]
 
     def __str__(self):
@@ -370,8 +356,7 @@ class Course(TenantScopedModel):
             ),
             # 3. Term requires year (defensive)
             models.CheckConstraint(
-                condition=models.Q(term__isnull=True)
-                | models.Q(academic_year__isnull=False),
+                condition=models.Q(term__isnull=True) | models.Q(academic_year__isnull=False),
                 name="course_term_requires_academic_year",
             ),
         ]
@@ -390,9 +375,9 @@ class Course(TenantScopedModel):
 
         if self.term_id and self.academic_year_id:
             if self.term.academic_year_id != self.academic_year_id:
-                raise ValidationError(
-                    {"term": "الترم المختار لا ينتمي للسنة الدراسية المحددة."}
-                )
+                raise ValidationError({"term": "الترم المختار لا ينتمي للسنة الدراسية المحددة."})
+
+
 class Chapter(TenantScopedModel):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="chapters")
     name = models.CharField(max_length=150)

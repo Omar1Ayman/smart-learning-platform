@@ -9,7 +9,6 @@ from .factories import (
     QuestionBankFactory,
     QuestionFactory,
     TeacherUserFactory,
-    TenantFactory,
     UserFactory,
 )
 
@@ -24,21 +23,35 @@ def _setup_mixed_questions():
 
     # Pending, approved, rejected (all from teacher)
     pending = QuestionFactory(
-        bank=bank, tenant=tenant, created_by=teacher,
-        review_status=Question.ReviewStatus.PENDING, text="Pending Q1",
+        bank=bank,
+        tenant=tenant,
+        created_by=teacher,
+        review_status=Question.ReviewStatus.PENDING,
+        text="Pending Q1",
     )
     approved = QuestionFactory(
-        bank=bank, tenant=tenant, created_by=teacher,
-        review_status=Question.ReviewStatus.APPROVED, text="Approved Q1",
+        bank=bank,
+        tenant=tenant,
+        created_by=teacher,
+        review_status=Question.ReviewStatus.APPROVED,
+        text="Approved Q1",
         question_type=Question.QuestionType.MCQ,
     )
     rejected = QuestionFactory(
-        bank=bank, tenant=tenant, created_by=teacher,
-        review_status=Question.ReviewStatus.REJECTED, text="Rejected Q1",
+        bank=bank,
+        tenant=tenant,
+        created_by=teacher,
+        review_status=Question.ReviewStatus.REJECTED,
+        text="Rejected Q1",
     )
     return {
-        "bank": bank, "tenant": tenant, "owner": owner, "teacher": teacher,
-        "pending": pending, "approved": approved, "rejected": rejected,
+        "bank": bank,
+        "tenant": tenant,
+        "owner": owner,
+        "teacher": teacher,
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
     }
 
 
@@ -66,8 +79,11 @@ def test_stats_reflects_teacher_scope(api_client):
     # Another teacher's pending question — visible to OWNER, invisible to teacher
     other_teacher = TeacherUserFactory(tenant=ctx["tenant"])
     QuestionFactory(
-        bank=ctx["bank"], tenant=ctx["tenant"], created_by=other_teacher,
-        review_status=Question.ReviewStatus.PENDING, text="Someone else's pending",
+        bank=ctx["bank"],
+        tenant=ctx["tenant"],
+        created_by=other_teacher,
+        review_status=Question.ReviewStatus.PENDING,
+        text="Someone else's pending",
     )
 
     client = login_as(api_client, ctx["teacher"])

@@ -7,8 +7,6 @@ in the backend but had no UI, so they could only be set via the API.
 
 import pytest
 
-from apps.assessments.models import Assessment
-
 from .conftest import login_as
 from .factories import AssessmentFactory, UserFactory
 
@@ -48,9 +46,7 @@ def test_patch_assessment_persists_entry_cutoff_minutes(api_client):
 def test_patch_assessment_clears_late_entry_minutes(api_client):
     """Passing null clears the field (wizard's "leave blank" path)."""
     owner = UserFactory(role="OWNER")
-    assessment = AssessmentFactory(
-        tenant=owner.tenant, status="DRAFT", late_entry_minutes=30
-    )
+    assessment = AssessmentFactory(tenant=owner.tenant, status="DRAFT", late_entry_minutes=30)
 
     client = login_as(api_client, owner)
     r = client.patch(

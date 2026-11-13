@@ -31,7 +31,6 @@ from apps.academics.models import (
 from apps.accounts.models import User
 from apps.people.models import Enrollment, TeacherAssignment
 
-
 # Per-step metadata. Kept as a dict (not tuples) so adding a field later
 # is a one-line change per step instead of a re-shuffle of every tuple.
 STEP_META = {
@@ -130,12 +129,8 @@ def get_setup_status(tenant) -> dict:
         "group": Group.objects.for_tenant(tenant).count(),
         "subject": Subject.objects.for_tenant(tenant).count(),
         "course": Course.objects.for_tenant(tenant).count(),
-        "teacher": User.objects.for_tenant(tenant)
-        .filter(role=User.Role.TEACHER)
-        .count(),
-        "student": User.objects.for_tenant(tenant)
-        .filter(role=User.Role.STUDENT)
-        .count(),
+        "teacher": User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER).count(),
+        "student": User.objects.for_tenant(tenant).filter(role=User.Role.STUDENT).count(),
         "enrollment": Enrollment.objects.for_tenant(tenant).count(),
         "teacher_assignment": TeacherAssignment.objects.for_tenant(tenant).count(),
     }
@@ -211,12 +206,7 @@ def get_setup_status(tenant) -> dict:
         # is on the minimal path — that's the strongest nudge we can give
         # ("do this specific thing next"), and it prevents the UI from
         # pointing at an advanced step when basics aren't done yet.
-        if (
-            next_action is None
-            and importance == "required"
-            and not done
-            and not blocked
-        ):
+        if next_action is None and importance == "required" and not done and not blocked:
             next_action = {
                 **step,
                 "why": meta["why"],

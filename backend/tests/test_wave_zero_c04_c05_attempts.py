@@ -25,6 +25,7 @@ Fix history (test C-5):
     so the enrollment lookup passes through normally, and ONLY the
     first ExamAttempt.for_tenant (the existing-check) is blanked.
 """
+
 from datetime import timedelta
 from decimal import Decimal
 
@@ -36,7 +37,6 @@ from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.common.models import TenantScopedManager
 from apps.exam_engine.models import ExamAttempt
 from apps.exam_engine.services import save_answer, start_attempt
-from apps.people.models import Enrollment
 from apps.questions.models import Question
 
 from .factories import (
@@ -62,9 +62,7 @@ def _setup_attempt():
         group=group,
         academic_year=group.academic_year,
     )
-    assessment = AssessmentFactory(
-        tenant=group.tenant, status="PUBLISHED", duration_minutes=30
-    )
+    assessment = AssessmentFactory(tenant=group.tenant, status="PUBLISHED", duration_minutes=30)
     AssessmentTarget.objects.create(
         tenant=group.tenant,
         assessment=assessment,
@@ -162,9 +160,7 @@ def test_start_attempt_returns_winner_on_create_race(monkeypatch):
         group=group,
         academic_year=group.academic_year,
     )
-    assessment = AssessmentFactory(
-        tenant=group.tenant, status="PUBLISHED", duration_minutes=30
-    )
+    assessment = AssessmentFactory(tenant=group.tenant, status="PUBLISHED", duration_minutes=30)
     AssessmentTarget.objects.create(
         tenant=group.tenant,
         assessment=assessment,
@@ -242,6 +238,4 @@ def test_start_attempt_returns_winner_on_create_race(monkeypatch):
 
     # Sanity: the create attempt must NOT have succeeded — a second row
     # would mean the race simulation didn't fire.
-    assert (
-        ExamAttempt.objects.filter(assessment=assessment, student=student).count() == 1
-    )
+    assert ExamAttempt.objects.filter(assessment=assessment, student=student).count() == 1

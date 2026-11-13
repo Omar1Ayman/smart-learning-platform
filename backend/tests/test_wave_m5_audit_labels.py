@@ -9,7 +9,9 @@ import pytest
 
 from apps.audit.models import AuditLog
 from apps.audit.serializers import ACTION_LABELS, AuditLogSerializer
+
 pytestmark = pytest.mark.django_db
+
 
 def test_known_actions_have_explicit_labels():
     """Every action we currently emit must have an explicit Arabic label."""

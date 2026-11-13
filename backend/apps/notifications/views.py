@@ -58,9 +58,7 @@ class NotificationViewSet(ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"])
     def mark_all_read(self, request):
         """Mark every unread notification as read."""
-        count = Notification.objects.filter(user=request.user, is_read=False).update(
-            is_read=True
-        )
+        count = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
         return Response({"marked_read": count})
 
     @action(detail=False, methods=["get"])

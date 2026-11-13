@@ -24,7 +24,9 @@ def test_owner_can_create_a_draft_assessment(api_client):
     owner = UserFactory(role="OWNER")
     client = login_as(api_client, owner)
     resp = client.post(
-        "/api/v1/assessments/", {"title": "Biology Midterm", "assessment_type": "MIDTERM"}, format="json"
+        "/api/v1/assessments/",
+        {"title": "Biology Midterm", "assessment_type": "MIDTERM"},
+        format="json",
     )
     assert resp.status_code == 201, resp.data
     assert resp.data["status"] == "DRAFT"
@@ -42,7 +44,9 @@ def test_teacher_can_create_an_assessment(api_client):
 def test_student_cannot_create_an_assessment(api_client):
     student = UserFactory(role="STUDENT")
     client = login_as(api_client, student)
-    resp = client.post("/api/v1/assessments/", {"title": "Nope", "assessment_type": "QUIZ"}, format="json")
+    resp = client.post(
+        "/api/v1/assessments/", {"title": "Nope", "assessment_type": "QUIZ"}, format="json"
+    )
     assert resp.status_code == 403
 
 

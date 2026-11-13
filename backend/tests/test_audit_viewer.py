@@ -13,9 +13,7 @@ pytestmark = pytest.mark.django_db
 def test_owner_can_list_audit_logs(api_client):
     tenant = TenantFactory()
     owner = UserFactory(tenant=tenant, role="OWNER")
-    AuditLog.objects.create(
-        tenant=tenant, actor=owner, action="user.logged_in", object_type="User"
-    )
+    AuditLog.objects.create(tenant=tenant, actor=owner, action="user.logged_in", object_type="User")
     client = login_as(api_client, owner)
     r = client.get("/api/v1/audit-logs/")
     assert r.status_code == 200

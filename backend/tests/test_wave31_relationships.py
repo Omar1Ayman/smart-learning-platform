@@ -4,7 +4,7 @@ import pytest
 
 from apps.academics.models import Course
 from apps.people.models import Enrollment
-from .factories import StageFactory
+
 from .conftest import login_as
 from .factories import (
     AcademicYearFactory,
@@ -14,7 +14,6 @@ from .factories import (
     GroupFactory,
     StudentUserFactory,
     SubjectFactory,
-    TeacherUserFactory,
     TenantFactory,
     TermFactory,
     UserFactory,
@@ -78,9 +77,7 @@ def test_term_requires_academic_year():
     grade = GradeFactory(tenant=tenant)
 
     with pytest.raises(IntegrityError), transaction.atomic():
-        Course.objects.create(
-            tenant=tenant, subject=subject, grade=grade, name="Math", term=term
-        )
+        Course.objects.create(tenant=tenant, subject=subject, grade=grade, name="Math", term=term)
 
 
 def test_course_term_must_belong_to_year(api_client):

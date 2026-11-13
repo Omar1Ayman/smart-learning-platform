@@ -20,7 +20,6 @@ from .serializers import (
     FeatureStatusSerializer,
     MyPlanSerializer,
     PlanSerializer,
-    UsageItemSerializer,
 )
 from .services import get_features_dict, get_plan_summary, get_usage
 
@@ -36,9 +35,8 @@ class PublicPlansListView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        plans = (
-            Plan.objects.filter(is_active=True, is_public=True)
-            .order_by("display_order", "price_monthly")
+        plans = Plan.objects.filter(is_active=True, is_public=True).order_by(
+            "display_order", "price_monthly"
         )
         return Response(PlanSerializer(plans, many=True).data)
 
@@ -64,6 +62,8 @@ class MyUsageView(TenantContextMixin, APIView):
 
     def get(self, request):
         return Response(get_usage(request.tenant))
+
+
 class MyFeaturesView(TenantContextMixin, APIView):
     """GET /api/v1/billing/features/ — quick feature map."""
 
@@ -71,7 +71,5 @@ class MyFeaturesView(TenantContextMixin, APIView):
 
     def get(self, request):
         return Response(
-            FeatureStatusSerializer(
-                {"features": get_features_dict(request.tenant)}
-            ).data
+            FeatureStatusSerializer({"features": get_features_dict(request.tenant)}).data
         )

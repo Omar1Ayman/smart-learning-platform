@@ -7,7 +7,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.assessments.models import Assessment, AssessmentQuestion, AssessmentTarget
+from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.exam_engine.models import ExamAttempt
 from apps.exam_engine.services import save_answer, start_attempt, submit_attempt
 from apps.questions.models import Question
@@ -64,6 +64,7 @@ def _link(assessment, question_type=Question.QuestionType.MCQ, with_options=True
 
 
 # ---------- start_attempt ----------
+
 
 def test_start_attempt_rejects_unpublished():
     student, _, assessment = _enrolled_student_targeted_by_grade()
@@ -147,6 +148,7 @@ def test_start_attempt_sets_expiry_from_duration():
 
 # ---------- save_answer ----------
 
+
 def test_save_answer_persists_chosen_option():
     student, _, assessment = _enrolled_student_targeted_by_grade()
     q = _link(assessment)
@@ -179,6 +181,7 @@ def test_save_answer_rejects_option_from_another_question():
 
 
 # ---------- submit_attempt ----------
+
 
 def test_submit_grades_mcq_correctly():
     student, _, assessment = _enrolled_student_targeted_by_grade()

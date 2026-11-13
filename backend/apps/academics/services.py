@@ -9,7 +9,6 @@ Phase 1.10-1.12 — Rollover Wizard services:
 
 from datetime import timedelta
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -17,7 +16,6 @@ from rest_framework.exceptions import ValidationError
 from apps.audit.services import log_action
 
 from .models import AcademicYear, Course, Group, Term
-
 
 # ============================================================================
 # Duplicate (existing)
@@ -32,15 +30,17 @@ def duplicate_course(course, actor):
 
     new_name = unique_copy_name(
         course.name,
-        lambda name: Course.objects.for_tenant(course.tenant)
-        .filter(
-            grade=course.grade,
-            subject=course.subject,
-            name=name,
-            academic_year=course.academic_year,
-            term=course.term,
-        )
-        .exists(),
+        lambda name: (
+            Course.objects.for_tenant(course.tenant)
+            .filter(
+                grade=course.grade,
+                subject=course.subject,
+                name=name,
+                academic_year=course.academic_year,
+                term=course.term,
+            )
+            .exists()
+        ),
     )
 
     with transaction.atomic():
@@ -196,11 +196,7 @@ def prepare_next_year(year, data, *, user):
         "copy_courses": data.get("copy_courses", True),
     }
 
-    existing = (
-        AcademicYear.objects.for_tenant(year.tenant)
-        .filter(rollover_source=year)
-        .first()
-    )
+    existing = AcademicYear.objects.for_tenant(year.tenant).filter(rollover_source=year).first()
     if existing is not None:
         return {
             "new_year_id": str(existing.id),
@@ -231,11 +227,7 @@ def prepare_next_year(year, data, *, user):
                 rollover_options=options,
             )
     except IntegrityError:
-        existing = (
-            AcademicYear.objects.for_tenant(year.tenant)
-            .filter(rollover_source=year)
-            .first()
-        )
+        existing = AcademicYear.objects.for_tenant(year.tenant).filter(rollover_source=year).first()
         if existing is None:
             raise
         return {
@@ -358,9 +350,7 @@ def promote_students(source_year, target_year, items, *, user):
         AcademicYear.Status.ACTIVE,
         AcademicYear.Status.CLOSING,
     ):
-        raise ValidationError(
-            "يجب أن تكون السنة المصدر نشطة أو قيد الإغلاق لتنفيذ الترقية."
-        )
+        raise ValidationError("يجب أن تكون السنة المصدر نشطة أو قيد الإغلاق لتنفيذ الترقية.")
     if target_year.status != AcademicYear.Status.ACTIVE:
         raise ValidationError("يجب تفعيل السنة الهدف قبل تنفيذ ترقية الطلاب.")
 
@@ -382,14 +372,11 @@ def promote_students(source_year, target_year, items, *, user):
             raise ValidationError(f"التسجيل {enrollment_id} غير موجود.")
 
         if enrollment.academic_year_id != source_year.id:
-            raise ValidationError(
-                f"التسجيل {enrollment_id} لا ينتمي للسنة المصدر."
-            )
+            raise ValidationError(f"التسجيل {enrollment_id} لا ينتمي للسنة المصدر.")
 
         if enrollment.status != Enrollment.Status.ACTIVE:
             raise ValidationError(
-                f"التسجيل {enrollment_id} ليس نشطًا "
-                f"(حالته: {enrollment.get_status_display()})."
+                f"التسجيل {enrollment_id} ليس نشطًا (حالته: {enrollment.get_status_display()})."
             )
 
         # --- GRADUATE / TRANSFER ---
@@ -427,8 +414,7 @@ def promote_students(source_year, target_year, items, *, user):
 
         if not target_group_id:
             raise ValidationError(
-                f"target_group مطلوب للإجراء {action} "
-                f"(الطالب: {enrollment.student.email})."
+                f"target_group مطلوب للإجراء {action} (الطالب: {enrollment.student.email})."
             )
 
         target_group = (
@@ -438,9 +424,7 @@ def promote_students(source_year, target_year, items, *, user):
             .first()
         )
         if target_group is None:
-            raise ValidationError(
-                f"المجموعة الهدف {target_group_id} غير موجودة في السنة الهدف."
-            )
+            raise ValidationError(f"المجموعة الهدف {target_group_id} غير موجودة في السنة الهدف.")
 
         if action == "PROMOTE":
             expected = enrollment.group.grade.next_grade()
@@ -464,18 +448,18 @@ def promote_students(source_year, target_year, items, *, user):
                 )
 
         # --- Prevent duplicate enrollment in target year ---
-        if Enrollment.objects.for_tenant(source_year.tenant).filter(
-            student=enrollment.student, academic_year=target_year
-        ).exists():
+        if (
+            Enrollment.objects.for_tenant(source_year.tenant)
+            .filter(student=enrollment.student, academic_year=target_year)
+            .exists()
+        ):
             raise ValidationError(
                 f"الطالب {enrollment.student.email} لديه تسجيل بالفعل في السنة الهدف."
             )
 
         # --- Mark old + create new ---
         old_status = (
-            Enrollment.Status.COMPLETED
-            if action == "PROMOTE"
-            else Enrollment.Status.FAILED
+            Enrollment.Status.COMPLETED if action == "PROMOTE" else Enrollment.Status.FAILED
         )
         enrollment.status = old_status
         enrollment.save(update_fields=["status", "updated_at"])

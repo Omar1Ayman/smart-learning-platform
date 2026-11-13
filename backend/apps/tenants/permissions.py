@@ -21,7 +21,6 @@ def user_can(user, permission_key: str) -> bool:
     if not user or not user.tenant:
         return False
 
-
     # المالك دائماً لديه كل الصلاحيات
     if user.role == "OWNER":
         return True
@@ -87,9 +86,7 @@ class CanManageTeachers(BasePermission):
             return True
         if user.role != "ADMIN":
             return False
-        return request.method in SAFE_METHODS or user_can(
-            user, "admins_can_manage_teachers"
-        )
+        return request.method in SAFE_METHODS or user_can(user, "admins_can_manage_teachers")
 
 
 class CanManageTenantSettings(BasePermission):
@@ -100,8 +97,7 @@ class CanManageTenantSettings(BasePermission):
         if not user or not user.is_authenticated:
             return False
         return user.role == "OWNER" or (
-            user.role == "ADMIN"
-            and user_can(user, "admins_can_manage_settings")
+            user.role == "ADMIN" and user_can(user, "admins_can_manage_settings")
         )
 
 
@@ -113,8 +109,7 @@ class CanApproveQuestions(BasePermission):
         if not user or not user.is_authenticated:
             return False
         return user.role == "OWNER" or (
-            user.role == "ADMIN"
-            and user_can(user, "admins_can_approve_questions")
+            user.role == "ADMIN" and user_can(user, "admins_can_approve_questions")
         )
 
 
@@ -126,8 +121,7 @@ class CanViewAuditLog(BasePermission):
         if not user or not user.is_authenticated:
             return False
         return user.role in ("OWNER", "ADMIN") or (
-            user.role == "TEACHER"
-            and user_can(user, "enable_audit_log_for_teachers")
+            user.role == "TEACHER" and user_can(user, "enable_audit_log_for_teachers")
         )
 
 

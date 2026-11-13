@@ -12,7 +12,6 @@ M3 fix — `HealthCheckView` no longer runs COUNT(*) on every hit.
 from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError, RestrictedError
 from django.http import JsonResponse
-
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -156,11 +155,7 @@ class YearAwareViewSet(TenantScopedViewSet):
             lookup_value = self.kwargs.get(lookup_url_kwarg)
             instance = None
             if lookup_value is not None:
-                instance = (
-                    self.get_queryset()
-                    .filter(**{self.lookup_field: lookup_value})
-                    .first()
-                )
+                instance = self.get_queryset().filter(**{self.lookup_field: lookup_value}).first()
             self._check_year_writable(instance=instance)
 
     def get_active_year(self):
@@ -173,11 +168,7 @@ class YearAwareViewSet(TenantScopedViewSet):
 
         year_id = self.request.query_params.get("academic_year")
         if year_id:
-            return (
-                AcademicYear.objects.for_tenant(tenant)
-                .filter(id=year_id)
-                .first()
-            )
+            return AcademicYear.objects.for_tenant(tenant).filter(id=year_id).first()
 
         body_year = getattr(self.request, "data", {}).get("academic_year")
         if body_year:
@@ -191,8 +182,9 @@ class YearAwareViewSet(TenantScopedViewSet):
 
     def _check_year_writable(self, *, instance=None, validated_data=None):
         """Check the year attached to the object before falling back to active."""
-        from apps.academics.models import AcademicYear
         from rest_framework.exceptions import PermissionDenied
+
+        from apps.academics.models import AcademicYear
 
         instance_year = self._year_from_scope(instance)
         target_year = self._year_from_scope(validated_data)
@@ -229,10 +221,7 @@ class YearAwareViewSet(TenantScopedViewSet):
                     f"السنة الدراسية «{year.name}» مؤرشفة للقراءة فقط. "
                     "لا يمكن التعديل على بياناتها."
                 )
-            if (
-                year.status == AcademicYear.Status.DRAFT
-                and not self.draft_write_allowed
-            ):
+            if year.status == AcademicYear.Status.DRAFT and not self.draft_write_allowed:
                 raise PermissionDenied(
                     f"السنة الدراسية «{year.name}» قيد الإعداد. "
                     "العمليات التعليمية متاحة بعد تفعيل السنة."
@@ -243,8 +232,7 @@ class YearAwareViewSet(TenantScopedViewSet):
                 and getattr(self, "action", None) == "create"
             ):
                 raise PermissionDenied(
-                    f"السنة الدراسية «{year.name}» قيد الإغلاق. "
-                    "لا يمكن إنشاء تسجيلات جديدة."
+                    f"السنة الدراسية «{year.name}» قيد الإغلاق. لا يمكن إنشاء تسجيلات جديدة."
                 )
 
     def _year_from_scope(self, value):

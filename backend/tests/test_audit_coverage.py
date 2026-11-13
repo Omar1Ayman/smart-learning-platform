@@ -7,7 +7,6 @@ from apps.content.models import Content
 
 from .conftest import login_as
 from .factories import (
-    AssessmentFactory,
     QuestionBankFactory,
     TeacherUserFactory,
     TenantFactory,

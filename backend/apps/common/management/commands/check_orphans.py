@@ -15,11 +15,9 @@ Usage:
 from django.core.management.base import BaseCommand
 
 from apps.academics.models import Chapter, Course, Grade, Group, Lesson, Term
-from apps.accounts.models import User
 from apps.common.dependencies import MODEL_REQUIRES
-from apps.people.models import Enrollment, TeacherAssignment, TeacherAssignment as TA
+from apps.people.models import Enrollment, TeacherAssignment
 from apps.questions.models import Question
-
 
 MODEL_MAP = {
     "Term": Term,

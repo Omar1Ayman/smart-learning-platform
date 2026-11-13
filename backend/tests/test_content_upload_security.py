@@ -51,7 +51,11 @@ def test_wrong_extension_for_content_type_is_rejected(api_client):
 
     resp = client.post(
         "/api/v1/content/",
-        {"title": "Bad extension", "content_type": "PDF", "file": make_png()},  # a real PNG, .png extension
+        {
+            "title": "Bad extension",
+            "content_type": "PDF",
+            "file": make_png(),
+        },  # a real PNG, .png extension
         format="multipart",
     )
     assert resp.status_code == 400
@@ -116,7 +120,11 @@ def test_external_link_content_does_not_need_a_file(api_client):
 
     resp = client.post(
         "/api/v1/content/",
-        {"title": "Khan Academy", "content_type": "EXTERNAL_LINK", "external_url": "https://example.com/x"},
+        {
+            "title": "Khan Academy",
+            "content_type": "EXTERNAL_LINK",
+            "external_url": "https://example.com/x",
+        },
         format="json",
     )
     assert resp.status_code == 201, resp.data
@@ -154,7 +162,11 @@ def test_owner_can_edit_any_teachers_content(api_client):
     owner = UserFactory(tenant=tenant, role="OWNER")
     teacher = TeacherUserFactory(tenant=tenant)
     content = Content.objects.create(
-        tenant=tenant, title="Teacher's notes", content_type="TEXT", text_body="...", created_by=teacher
+        tenant=tenant,
+        title="Teacher's notes",
+        content_type="TEXT",
+        text_body="...",
+        created_by=teacher,
     )
 
     client = login_as(api_client, owner)
@@ -168,9 +180,12 @@ def test_student_cannot_create_content(api_client):
     client = login_as(api_client, student)
 
     resp = client.post(
-        "/api/v1/content/", {"title": "Not allowed", "content_type": "TEXT", "text_body": "x"}, format="json"
+        "/api/v1/content/",
+        {"title": "Not allowed", "content_type": "TEXT", "text_body": "x"},
+        format="json",
     )
     assert resp.status_code == 403
+
 
 def test_student_cannot_bulk_delete_content(api_client):
     """Wave D0b security — STUDENT must not reach bulk_delete at all."""
@@ -178,8 +193,11 @@ def test_student_cannot_bulk_delete_content(api_client):
     owner = UserFactory(tenant=tenant, role="OWNER")
     student = UserFactory(tenant=tenant, role="STUDENT")
     content = Content.objects.create(
-        tenant=tenant, title="Visible to students", content_type="TEXT",
-        text_body="...", is_published=True,
+        tenant=tenant,
+        title="Visible to students",
+        content_type="TEXT",
+        text_body="...",
+        is_published=True,
     )
 
     client = login_as(api_client, student)
@@ -202,12 +220,18 @@ def test_teacher_bulk_delete_only_own_content_by_default(api_client):
     teacher_b = TeacherUserFactory(tenant=tenant)
 
     own = Content.objects.create(
-        tenant=tenant, title="Mine", content_type="TEXT",
-        text_body="...", created_by=teacher_a,
+        tenant=tenant,
+        title="Mine",
+        content_type="TEXT",
+        text_body="...",
+        created_by=teacher_a,
     )
     other = Content.objects.create(
-        tenant=tenant, title="Colleague's", content_type="TEXT",
-        text_body="...", created_by=teacher_b,
+        tenant=tenant,
+        title="Colleague's",
+        content_type="TEXT",
+        text_body="...",
+        created_by=teacher_b,
     )
 
     client = login_as(api_client, teacher_a)
@@ -228,12 +252,18 @@ def test_teacher_bulk_delete_own_content_succeeds(api_client):
     tenant = TenantFactory()
     teacher = TeacherUserFactory(tenant=tenant)
     c1 = Content.objects.create(
-        tenant=tenant, title="One", content_type="TEXT",
-        text_body="...", created_by=teacher,
+        tenant=tenant,
+        title="One",
+        content_type="TEXT",
+        text_body="...",
+        created_by=teacher,
     )
     c2 = Content.objects.create(
-        tenant=tenant, title="Two", content_type="TEXT",
-        text_body="...", created_by=teacher,
+        tenant=tenant,
+        title="Two",
+        content_type="TEXT",
+        text_body="...",
+        created_by=teacher,
     )
 
     client = login_as(api_client, teacher)

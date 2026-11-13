@@ -6,7 +6,6 @@ from apps.assessments.services import estimate_reach
 from .factories import (
     AssessmentFactory,
     EnrollmentFactory,
-    GradeFactory,
     GroupFactory,
     StudentUserFactory,
     UserFactory,
@@ -17,7 +16,9 @@ pytestmark = pytest.mark.django_db
 
 def _enroll(group):
     s = StudentUserFactory(tenant=group.tenant)
-    EnrollmentFactory(tenant=group.tenant, student=s, group=group, academic_year=group.academic_year)
+    EnrollmentFactory(
+        tenant=group.tenant, student=s, group=group, academic_year=group.academic_year
+    )
     return s
 
 
@@ -49,7 +50,9 @@ def test_grade_target_counts_only_that_grade():
 
 def test_group_target_counts_only_that_group():
     group_a = GroupFactory()
-    group_b = GroupFactory(grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant)
+    group_b = GroupFactory(
+        grade=group_a.grade, academic_year=group_a.academic_year, tenant=group_a.tenant
+    )
     _enroll(group_a)
     _enroll(group_b)
     a = AssessmentFactory(tenant=group_a.tenant)
@@ -63,8 +66,12 @@ def test_student_dup_in_multiple_targets_counted_once():
     group_a = GroupFactory()
     s = _enroll(group_a)
     a = AssessmentFactory(tenant=group_a.tenant)
-    AssessmentTarget.objects.create(tenant=group_a.tenant, assessment=a, target_type="GROUP", group=group_a)
-    AssessmentTarget.objects.create(tenant=group_a.tenant, assessment=a, target_type="STUDENT", student=s)
+    AssessmentTarget.objects.create(
+        tenant=group_a.tenant, assessment=a, target_type="GROUP", group=group_a
+    )
+    AssessmentTarget.objects.create(
+        tenant=group_a.tenant, assessment=a, target_type="STUDENT", student=s
+    )
     assert estimate_reach(a) == 1
 
 

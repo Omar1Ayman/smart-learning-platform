@@ -88,12 +88,12 @@ class ContentViewSet(YearAwareViewSet):
     def _check_teacher_publish(self, validated_data, instance=None):
         if self.request.user.role != User.Role.TEACHER:
             return
-        is_published = validated_data.get(
-            "is_published", getattr(instance, "is_published", False)
-        )
+        is_published = validated_data.get("is_published", getattr(instance, "is_published", False))
         was_published = bool(instance and instance.is_published)
-        if is_published and not was_published and not user_can(
-            self.request.user, "teachers_can_publish_content_directly"
+        if (
+            is_published
+            and not was_published
+            and not user_can(self.request.user, "teachers_can_publish_content_directly")
         ):
             raise PermissionDenied("نشر المحتوى مباشرة غير مسموح لك حسب إعدادات المؤسسة.")
 
@@ -193,8 +193,7 @@ class ContentViewSet(YearAwareViewSet):
                     "error": {
                         "status": 403,
                         "detail": (
-                            f"لا يمكنك حذف {len(unauthorized)} عنصر — "
-                            "ليس لديك صلاحية عليها."
+                            f"لا يمكنك حذف {len(unauthorized)} عنصر — ليس لديك صلاحية عليها."
                         ),
                     }
                 },
@@ -293,7 +292,7 @@ class ContentViewSet(YearAwareViewSet):
         if content.content_type != Content.ContentType.IMAGE or not content.file:
             raise Http404("لا توجد معاينة لهذا العنصر.")
 
-                # M8 fix: TOCTOU-safe open. See download() for rationale.
+            # M8 fix: TOCTOU-safe open. See download() for rationale.
         try:
             file_handle = content.file.open("rb")
         except (FileNotFoundError, OSError):

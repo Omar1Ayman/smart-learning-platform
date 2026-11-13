@@ -7,9 +7,7 @@ class ExamPolicySerializer(serializers.Serializer):
     allow_retakes = serializers.BooleanField(default=True)
     max_attempts_default = serializers.IntegerField(min_value=1, max_value=20, default=2)
     force_fullscreen = serializers.BooleanField(default=False)
-    auto_submit_after_tab_switches = serializers.IntegerField(
-        min_value=0, max_value=20, default=0
-    )
+    auto_submit_after_tab_switches = serializers.IntegerField(min_value=0, max_value=20, default=0)
     show_correct_answers_after_submit = serializers.BooleanField(default=True)
     teachers_can_self_publish = serializers.BooleanField(default=False)
     shuffle_questions_default = serializers.BooleanField(default=False)
@@ -33,6 +31,7 @@ class NotificationPolicySerializer(serializers.Serializer):
 
 class PermissionsSerializer(serializers.Serializer):
     """Wave 35 — Granular permission toggles per role."""
+
     # Teacher
     teachers_can_create_assessments = serializers.BooleanField(default=True)
     teachers_can_delete_own_assessments = serializers.BooleanField(default=True)

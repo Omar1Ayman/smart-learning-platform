@@ -9,7 +9,6 @@ from apps.assessments.models import Assessment, AssessmentQuestion
 from .conftest import login_as
 from .factories import (
     AssessmentFactory,
-    GradeFactory,
     QuestionBankFactory,
     QuestionFactory,
     TeacherUserFactory,
@@ -31,6 +30,7 @@ def _link(assessment, approved=True):
 
 # ---------- STUDENT is blocked entirely ----------
 
+
 def test_student_cannot_list_assessment_questions(api_client):
     assessment = AssessmentFactory()
     _link(assessment)
@@ -51,6 +51,7 @@ def test_student_cannot_list_assessment_targets(api_client):
 
 
 # ---------- Cross-teacher isolation ----------
+
 
 def test_teacher_cannot_add_question_to_another_teachers_draft(api_client):
     owner = TeacherUserFactory()
@@ -98,6 +99,7 @@ def test_teacher_cannot_delete_another_teachers_question_link(api_client):
 
 
 # ---------- Published assessments are locked ----------
+
 
 def test_teacher_cannot_add_question_to_published_assessment(api_client):
     teacher = TeacherUserFactory()

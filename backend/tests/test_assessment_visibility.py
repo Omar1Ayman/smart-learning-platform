@@ -26,7 +26,9 @@ def _publish(assessment):
 
 def _enrolled_student(group):
     student = UserFactory(tenant=group.tenant, role="STUDENT")
-    EnrollmentFactory(tenant=group.tenant, student=student, group=group, academic_year=group.academic_year)
+    EnrollmentFactory(
+        tenant=group.tenant, student=student, group=group, academic_year=group.academic_year
+    )
     return student
 
 
@@ -76,7 +78,9 @@ def test_student_sees_tenant_wide_targeted_assessment(api_client):
     group = GroupFactory()
     student = _enrolled_student(group)
     assessment = AssessmentFactory(tenant=group.tenant)
-    AssessmentTarget.objects.create(tenant=group.tenant, assessment=assessment, target_type="TENANT")
+    AssessmentTarget.objects.create(
+        tenant=group.tenant, assessment=assessment, target_type="TENANT"
+    )
     _publish(assessment)
 
     client = login_as(api_client, student)
@@ -100,7 +104,9 @@ def test_student_response_never_includes_staff_only_fields(api_client):
     group = GroupFactory()
     student = _enrolled_student(group)
     assessment = AssessmentFactory(tenant=group.tenant)
-    AssessmentTarget.objects.create(tenant=group.tenant, assessment=assessment, target_type="TENANT")
+    AssessmentTarget.objects.create(
+        tenant=group.tenant, assessment=assessment, target_type="TENANT"
+    )
     _publish(assessment)
 
     client = login_as(api_client, student)

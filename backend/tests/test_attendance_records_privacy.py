@@ -1,7 +1,8 @@
 import pytest
+from django.utils import timezone
+
 from apps.accounts.models import User
 from apps.attendance.models import AttendanceRecord, AttendanceSession
-from django.utils import timezone
 
 from .conftest import login_as
 from .factories import (
@@ -57,14 +58,10 @@ def _session_with_two_students():
 
 
 def test_student_attendance_records_include_only_their_safe_record(api_client):
-    session, student, peer, _teacher, own_record, _peer_record = (
-        _session_with_two_students()
-    )
+    session, student, peer, _teacher, own_record, _peer_record = _session_with_two_students()
     client = login_as(api_client, student)
 
-    response = client.get(
-        f"/api/v1/attendance/sessions/{session.id}/records/"
-    )
+    response = client.get(f"/api/v1/attendance/sessions/{session.id}/records/")
 
     assert response.status_code == 200
     assert len(response.data) == 1
@@ -81,14 +78,10 @@ def test_student_attendance_records_include_only_their_safe_record(api_client):
 
 
 def test_staff_can_still_read_the_attendance_roster(api_client):
-    session, _student, peer, teacher, _own_record, peer_record = (
-        _session_with_two_students()
-    )
+    session, _student, peer, teacher, _own_record, peer_record = _session_with_two_students()
     client = login_as(api_client, teacher)
 
-    response = client.get(
-        f"/api/v1/attendance/sessions/{session.id}/records/"
-    )
+    response = client.get(f"/api/v1/attendance/sessions/{session.id}/records/")
 
     assert response.status_code == 200
     assert len(response.data) == 2
@@ -97,14 +90,10 @@ def test_staff_can_still_read_the_attendance_roster(api_client):
 
 
 def test_parent_cannot_read_attendance_roster(api_client):
-    session, _student, _peer, _teacher, _own_record, _peer_record = (
-        _session_with_two_students()
-    )
+    session, _student, _peer, _teacher, _own_record, _peer_record = _session_with_two_students()
     parent = UserFactory(tenant=session.tenant, role=User.Role.PARENT)
     client = login_as(api_client, parent)
 
-    response = client.get(
-        f"/api/v1/attendance/sessions/{session.id}/records/"
-    )
+    response = client.get(f"/api/v1/attendance/sessions/{session.id}/records/")
 
     assert response.status_code in {403, 404}

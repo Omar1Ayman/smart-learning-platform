@@ -6,7 +6,13 @@ unreviewed drafts."""
 import pytest
 
 from .conftest import login_as
-from .factories import QuestionBankFactory, QuestionFactory, TeacherUserFactory, TenantFactory, UserFactory
+from .factories import (
+    QuestionBankFactory,
+    QuestionFactory,
+    TeacherUserFactory,
+    TenantFactory,
+    UserFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -36,7 +42,9 @@ def test_teacher_sees_own_pending_plus_others_approved_but_not_others_pending(ap
     teacher_b = TeacherUserFactory(tenant=bank.tenant)
 
     own_pending = QuestionFactory(bank=bank, tenant=bank.tenant, created_by=teacher_a)
-    others_approved = QuestionFactory(bank=bank, tenant=bank.tenant, created_by=teacher_b, approved=True)
+    others_approved = QuestionFactory(
+        bank=bank, tenant=bank.tenant, created_by=teacher_b, approved=True
+    )
     others_pending = QuestionFactory(bank=bank, tenant=bank.tenant, created_by=teacher_b)
 
     client = login_as(api_client, teacher_a)

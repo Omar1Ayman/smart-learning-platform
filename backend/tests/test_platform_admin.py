@@ -21,6 +21,7 @@ def _platform_admin():
 
 # ---------- Access control ----------
 
+
 def test_regular_user_cannot_list_tenants(api_client):
     user = UserFactory()
     client = login_as(api_client, user)
@@ -44,6 +45,7 @@ def test_platform_admin_can_list_tenants(api_client):
 
 
 # ---------- Create tenant ----------
+
 
 def test_platform_admin_can_create_tenant_with_owner(api_client):
     admin = _platform_admin()
@@ -88,6 +90,7 @@ def test_cannot_create_tenant_with_duplicate_owner_email(api_client):
 
 # ---------- Status update ----------
 
+
 def test_platform_admin_can_suspend_tenant(api_client):
     tenant = TenantFactory(status="ACTIVE")
     admin = _platform_admin()
@@ -104,6 +107,7 @@ def test_platform_admin_can_suspend_tenant(api_client):
 
 
 # ---------- Suspension enforcement ----------
+
 
 def test_suspended_tenant_user_gets_403_on_tenant_endpoint(api_client):
     tenant = TenantFactory(status="SUSPENDED")
@@ -132,6 +136,7 @@ def test_active_tenant_user_can_access_endpoints(api_client):
 
 
 # ---------- Public demo requests ----------
+
 
 def test_anyone_can_submit_demo_request(api_client):
     resp = api_client.post(
@@ -169,13 +174,12 @@ def test_platform_admin_can_see_demo_requests(api_client):
 
 # ---------- Metrics ----------
 
+
 def test_platform_metrics_returns_counts(api_client):
     TenantFactory(status="ACTIVE")
     TenantFactory(status="TRIAL")
     TenantFactory(status="TRIAL")
-    DemoRequest.objects.create(
-        school_name="X", contact_name="Y", email="z@test.test", phone="0"
-    )
+    DemoRequest.objects.create(school_name="X", contact_name="Y", email="z@test.test", phone="0")
     admin = _platform_admin()
     client = login_as(api_client, admin)
     resp = client.get("/api/v1/platform/metrics/")

@@ -12,8 +12,8 @@ them in the bank view.
 
 from django.db import transaction
 
-from apps.common.utils import unique_copy_name
 from apps.accounts.models import User
+from apps.common.utils import unique_copy_name
 
 from .models import Question, QuestionOption
 
@@ -37,9 +37,11 @@ def duplicate_question(question: Question, actor: User) -> Question:
     """
     new_text = unique_copy_name(
         question.text,
-        lambda name: Question.objects.for_tenant(question.tenant)
-        .filter(bank=question.bank, text=name)
-        .exists(),
+        lambda name: (
+            Question.objects.for_tenant(question.tenant)
+            .filter(bank=question.bank, text=name)
+            .exists()
+        ),
     )
 
     with transaction.atomic():

@@ -27,9 +27,7 @@ class TenantContextMixin:
     def perform_authentication(self, request):
         super().perform_authentication(request)
         user = request.user
-        request.tenant = (
-            getattr(user, "tenant", None) if user and user.is_authenticated else None
-        )
+        request.tenant = getattr(user, "tenant", None) if user and user.is_authenticated else None
 
         if request.tenant is not None and not request.tenant.is_operational():
             if request.tenant.status == "SUSPENDED":

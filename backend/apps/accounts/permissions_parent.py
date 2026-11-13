@@ -10,9 +10,7 @@ class IsParent(BasePermission):
 
     def has_permission(self, request, view):
         return bool(
-            request.user
-            and request.user.is_authenticated
-            and request.user.role == "PARENT"
+            request.user and request.user.is_authenticated and request.user.role == "PARENT"
         )
 
 
@@ -26,6 +24,4 @@ class CanViewChild(BasePermission):
             return False
         if request.user.role != "PARENT":
             return False
-        return ParentChild.objects.filter(
-            parent=request.user, student=obj
-        ).exists()
+        return ParentChild.objects.filter(parent=request.user, student=obj).exists()

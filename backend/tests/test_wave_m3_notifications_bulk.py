@@ -35,9 +35,7 @@ def test_bulk_delete_only_own_notifications(api_client):
 def test_bulk_delete_rejects_empty_list(api_client):
     user = UserFactory()
     client = login_as(api_client, user)
-    r = client.post(
-        "/api/v1/notifications/bulk_delete/", {"ids": []}, format="json"
-    )
+    r = client.post("/api/v1/notifications/bulk_delete/", {"ids": []}, format="json")
     assert r.status_code == 400
 
 
@@ -87,9 +85,7 @@ def test_type_in_filter_with_multiple_types(api_client):
     notify(user, "SYSTEM", "Sys")
 
     client = login_as(api_client, user)
-    r = client.get(
-        "/api/v1/notifications/?type__in=QUESTION_APPROVED,QUESTION_REJECTED"
-    )
+    r = client.get("/api/v1/notifications/?type__in=QUESTION_APPROVED,QUESTION_REJECTED")
     titles = {row["title"] for row in r.data["results"]}
     assert titles == {"Q1", "Q2"}
 

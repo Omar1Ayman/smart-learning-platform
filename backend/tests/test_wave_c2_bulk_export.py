@@ -293,7 +293,8 @@ def test_student_cannot_export_results(api_client):
     client2 = login_as(api_client, targeted)
     r2 = client2.get(f"/api/v1/assessments/{assessment.id}/export_results/")
     assert r2.status_code == 403, r2.data
-    
+
+
 def test_bulk_grade_no_attempt_id_returns_error(api_client):
     """F-16 regression: an entry without attempt_id must return a
     per-item error, not 500."""

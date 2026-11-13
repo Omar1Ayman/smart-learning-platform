@@ -130,9 +130,7 @@ class CreateTenantSerializer(serializers.Serializer):
     owner_password = serializers.CharField(write_only=True, min_length=10)
     owner_first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     owner_last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    status = serializers.ChoiceField(
-        choices=Tenant.Status.choices, default=Tenant.Status.TRIAL
-    )
+    status = serializers.ChoiceField(choices=Tenant.Status.choices, default=Tenant.Status.TRIAL)
     trial_days = serializers.IntegerField(min_value=0, max_value=365, default=14)
     contact_email = serializers.EmailField(required=False, allow_blank=True, default="")
     internal_notes = serializers.CharField(required=False, allow_blank=True, default="")
@@ -275,9 +273,7 @@ class DemoRequestUpdateSerializer(serializers.Serializer):
 
 
 class PlatformPlanSerializer(serializers.ModelSerializer):
-    features = serializers.DictField(
-        child=serializers.BooleanField(), required=False
-    )
+    features = serializers.DictField(child=serializers.BooleanField(), required=False)
 
     class Meta:
         model = Plan
@@ -323,9 +319,7 @@ class PlatformPlanSerializer(serializers.ModelSerializer):
 
     def validate_is_active(self, value):
         if self.instance and self.instance.key == "free" and not value:
-            raise serializers.ValidationError(
-                "لا يمكن إيقاف الباقة المجانية الافتراضية."
-            )
+            raise serializers.ValidationError("لا يمكن إيقاف الباقة المجانية الافتراضية.")
         return value
 
     def validate_features(self, value):
@@ -422,9 +416,7 @@ class PlatformAssignSubscriptionSerializer(serializers.Serializer):
     )
     status = serializers.ChoiceField(choices=Subscription.Status.choices)
     trial_days = serializers.IntegerField(min_value=0, max_value=365, required=False)
-    feature_overrides = serializers.DictField(
-        child=serializers.BooleanField(), required=False
-    )
+    feature_overrides = serializers.DictField(child=serializers.BooleanField(), required=False)
     limit_overrides = serializers.DictField(
         child=serializers.IntegerField(min_value=0, allow_null=True), required=False
     )

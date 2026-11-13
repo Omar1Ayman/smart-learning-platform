@@ -13,7 +13,6 @@ from django.core.management.base import BaseCommand
 
 from apps.billing.models import Plan
 
-
 PLAN_DEFINITIONS = [
     {
         "key": "free",
@@ -127,25 +126,17 @@ class Command(BaseCommand):
 
             if reset:
                 # Force full overwrite
-                obj, was_created = Plan.objects.update_or_create(
-                    key=key, defaults=defaults
-                )
+                obj, was_created = Plan.objects.update_or_create(key=key, defaults=defaults)
             else:
                 # Only create if missing; never overwrite existing
-                obj, was_created = Plan.objects.get_or_create(
-                    key=key, defaults=defaults
-                )
+                obj, was_created = Plan.objects.get_or_create(key=key, defaults=defaults)
 
             if was_created:
                 created += 1
-                self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ Created plan: {key} ({obj.name})")
-                )
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Created plan: {key} ({obj.name})"))
             elif reset:
                 updated += 1
-                self.stdout.write(
-                    self.style.WARNING(f"  ↻ Reset plan: {key} ({obj.name})")
-                )
+                self.stdout.write(self.style.WARNING(f"  ↻ Reset plan: {key} ({obj.name})"))
             else:
                 self.stdout.write(f"  · Skipped existing: {key}")
 

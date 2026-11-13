@@ -7,9 +7,12 @@ not QuestionBank. Every create returned HTTP 500.
 After fix: perform_create logs `question_bank.created` with `name`
 metadata, and create returns 201.
 """
+
 import pytest
+
 from apps.audit.models import AuditLog
 from apps.questions.models import QuestionBank
+
 from .conftest import login_as
 from .factories import TenantFactory, UserFactory
 
@@ -44,6 +47,4 @@ def test_question_bank_create_writes_correct_audit_action(api_client):
         format="json",
     )
 
-    assert AuditLog.objects.filter(
-        action="question_bank.created", tenant=tenant
-    ).exists()
+    assert AuditLog.objects.filter(action="question_bank.created", tenant=tenant).exists()

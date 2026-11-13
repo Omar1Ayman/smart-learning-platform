@@ -13,13 +13,13 @@ from .conftest import login_as
 from .factories import (
     AcademicYearFactory,
     CourseFactory,
+    Enrollment,
     EnrollmentFactory,
     GroupFactory,
     SubjectFactory,
     TenantFactory,
     TermFactory,
     UserFactory,
-    Enrollment
 )
 
 pytestmark = pytest.mark.django_db
@@ -56,7 +56,9 @@ def test_student_sees_grade_subject_term_scoped_content_across_different_groups(
         resp = client.get("/api/v1/content/")
         assert resp.status_code == 200
         ids = [row["id"] for row in resp.data["results"]]
-        assert str(content.id) in ids, f"student in {student.email}'s group should see grade-wide content"
+        assert str(content.id) in ids, (
+            f"student in {student.email}'s group should see grade-wide content"
+        )
 
 
 def test_student_does_not_see_content_scoped_to_a_different_group():
@@ -135,13 +137,20 @@ def test_suspended_student_sees_no_content(api_client):
     year = AcademicYearFactory(tenant=tenant)
     group = GroupFactory(tenant=tenant, academic_year=year)
     content = Content.objects.create(
-        tenant=tenant, title="Biology", content_type="TEXT",
-        text_body="...", grade=group.grade, is_published=True,
+        tenant=tenant,
+        title="Biology",
+        content_type="TEXT",
+        text_body="...",
+        grade=group.grade,
+        is_published=True,
     )
     student = UserFactory(tenant=tenant, role="STUDENT")
     Enrollment.objects.create(
-        tenant=tenant, student=student, group=group,
-        academic_year=year, status=Enrollment.Status.SUSPENDED,  # ← SUSPENDED
+        tenant=tenant,
+        student=student,
+        group=group,
+        academic_year=year,
+        status=Enrollment.Status.SUSPENDED,  # ← SUSPENDED
     )
     client = login_as(api_client, student)
     r = client.get("/api/v1/content/")

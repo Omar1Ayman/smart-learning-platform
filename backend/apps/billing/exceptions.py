@@ -12,8 +12,5 @@ class LimitReached(APIException):
     """
 
     status_code = 402
-    default_detail = (
-        "وصلت للحد الأقصى المسموح في باقتك الحالية. "
-        "قم بالترقية لإضافة المزيد."
-    )
+    default_detail = "وصلت للحد الأقصى المسموح في باقتك الحالية. قم بالترقية لإضافة المزيد."
     default_code = "limit_reached"

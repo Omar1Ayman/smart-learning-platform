@@ -23,12 +23,8 @@ def _make_mcq(bank, tenant, **overrides):
         approved=True,
         **overrides,
     )
-    QuestionOption.objects.create(
-        tenant=tenant, question=q, text="A", is_correct=True, order=1
-    )
-    QuestionOption.objects.create(
-        tenant=tenant, question=q, text="B", is_correct=False, order=2
-    )
+    QuestionOption.objects.create(tenant=tenant, question=q, text="A", is_correct=True, order=1)
+    QuestionOption.objects.create(tenant=tenant, question=q, text="B", is_correct=False, order=2)
     return q
 
 
@@ -99,9 +95,7 @@ def test_duplicate_transfers_ownership_to_actor(api_client):
     bank = QuestionBankFactory()
     teacher_a = TeacherUserFactory(tenant=bank.tenant)
     teacher_b = TeacherUserFactory(tenant=bank.tenant)
-    source = _make_mcq(
-    bank, bank.tenant, text="Q?", created_by=teacher_a
-)
+    source = _make_mcq(bank, bank.tenant, text="Q?", created_by=teacher_a)
 
     # teacher_b sees teacher_a's approved question (approved is visible).
     client = login_as(api_client, teacher_b)

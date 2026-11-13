@@ -17,7 +17,9 @@ def test_owner_can_assign_teacher_to_course(api_client):
 
     client = login_as(api_client, owner)
     resp = client.post(
-        "/api/v1/teacher-assignments/", {"teacher": str(teacher.id), "course": str(course.id)}, format="json"
+        "/api/v1/teacher-assignments/",
+        {"teacher": str(teacher.id), "course": str(course.id)},
+        format="json",
     )
     assert resp.status_code == 201, resp.data
     assert TeacherAssignment.objects.get(id=resp.data["id"]).tenant_id == course.tenant_id

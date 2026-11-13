@@ -9,11 +9,10 @@ from .factories import (
     EnrollmentFactory,
     GroupFactory,
     StudentUserFactory,
-    TeacherUserFactory,
     TenantFactory,
     UserFactory,
 )
-from .file_fixtures import make_pdf, make_png
+from .file_fixtures import make_png
 
 pytestmark = pytest.mark.django_db
 
@@ -26,7 +25,6 @@ def _make_image_content(tenant, **kwargs):
 
     png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"\x00" * 100
     # Simpler: use the file fixture's raw bytes via SimpleUploadedFile.
-    from .file_fixtures import make_png
 
     png = make_png()
     content = Content(
@@ -36,9 +34,7 @@ def _make_image_content(tenant, **kwargs):
         is_published=kwargs.pop("is_published", True),
         **kwargs,
     )
-    content.file.save(
-        f"test-{uuid.uuid4()}.png", ContentFile(png.read()), save=False
-    )
+    content.file.save(f"test-{uuid.uuid4()}.png", ContentFile(png.read()), save=False)
     content.save()
     return content
 

@@ -17,10 +17,7 @@ def HasFeature(feature_key: str) -> type[BasePermission]:
     """
 
     class _HasFeature(BasePermission):
-        message = (
-            "هذه الميزة غير متاحة في باقتك الحالية. "
-            "قم بالترقية للوصول إليها."
-        )
+        message = "هذه الميزة غير متاحة في باقتك الحالية. قم بالترقية للوصول إليها."
 
         def has_permission(self, request, view):
             tenant = getattr(request, "tenant", None)

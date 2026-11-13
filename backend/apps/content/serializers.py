@@ -36,30 +36,16 @@ class ContentSerializer(TenantScopedModelSerializer):
         "term": Term,
     }
 
-    stage_name = serializers.CharField(
-        source="stage.name", read_only=True, allow_null=True
-    )
-    grade_name = serializers.CharField(
-        source="grade.name", read_only=True, allow_null=True
-    )
-    subject_name = serializers.CharField(
-        source="subject.name", read_only=True, allow_null=True
-    )
-    course_name = serializers.CharField(
-        source="course.name", read_only=True, allow_null=True
-    )
-    chapter_name = serializers.CharField(
-        source="chapter.name", read_only=True, allow_null=True
-    )
-    lesson_name = serializers.CharField(
-        source="lesson.name", read_only=True, allow_null=True
-    )
+    stage_name = serializers.CharField(source="stage.name", read_only=True, allow_null=True)
+    grade_name = serializers.CharField(source="grade.name", read_only=True, allow_null=True)
+    subject_name = serializers.CharField(source="subject.name", read_only=True, allow_null=True)
+    course_name = serializers.CharField(source="course.name", read_only=True, allow_null=True)
+    chapter_name = serializers.CharField(source="chapter.name", read_only=True, allow_null=True)
+    lesson_name = serializers.CharField(source="lesson.name", read_only=True, allow_null=True)
     academic_year_name = serializers.CharField(
         source="academic_year.name", read_only=True, allow_null=True
     )
-    term_name = serializers.CharField(
-        source="term.name", read_only=True, allow_null=True
-    )
+    term_name = serializers.CharField(source="term.name", read_only=True, allow_null=True)
 
     class Meta:
         model = Content
@@ -142,30 +128,22 @@ class ContentSerializer(TenantScopedModelSerializer):
             )
 
         if lesson and chapter and lesson.chapter_id != chapter.id:
-            raise serializers.ValidationError(
-                {"lesson": "الدرس المختار لا ينتمي للفصل المحدد."}
-            )
+            raise serializers.ValidationError({"lesson": "الدرس المختار لا ينتمي للفصل المحدد."})
 
         if course and grade and course.grade_id != grade.id:
-            raise serializers.ValidationError(
-                {"grade": "الصف المحدد لا يطابق صف المادة الدراسية."}
-            )
+            raise serializers.ValidationError({"grade": "الصف المحدد لا يطابق صف المادة الدراسية."})
 
         # -------------------------------------------------------------------
         # Content-type vs payload consistency (unchanged).
         # -------------------------------------------------------------------
-        content_type = attrs.get("content_type") or getattr(
-            self.instance, "content_type", None
-        )
+        content_type = attrs.get("content_type") or getattr(self.instance, "content_type", None)
         uploaded_file = attrs.get("file")
         external_url = current("external_url")
         text_body = current("text_body")
 
         if content_type in FILE_CONTENT_TYPES:
             if not uploaded_file and not (self.instance and self.instance.file):
-                raise serializers.ValidationError(
-                    {"file": "هذا النوع من المحتوى يتطلب رفع ملف."}
-                )
+                raise serializers.ValidationError({"file": "هذا النوع من المحتوى يتطلب رفع ملف."})
             if external_url or text_body:
                 raise serializers.ValidationError(
                     {
@@ -176,9 +154,7 @@ class ContentSerializer(TenantScopedModelSerializer):
                 policy = self.context["request"].tenant.get_policy("content_policy")
                 max_mb = policy.get("max_file_size_mb")
                 try:
-                    validate_uploaded_file(
-                        uploaded_file, content_type, max_size_override_mb=max_mb
-                    )
+                    validate_uploaded_file(uploaded_file, content_type, max_size_override_mb=max_mb)
                 except DjangoValidationError as exc:
                     raise serializers.ValidationError({"file": list(exc.messages)})
         elif content_type in URL_CONTENT_TYPES:
@@ -192,14 +168,10 @@ class ContentSerializer(TenantScopedModelSerializer):
                 )
         elif content_type in TEXT_CONTENT_TYPES:
             if not text_body:
-                raise serializers.ValidationError(
-                    {"text_body": "هذا النوع من المحتوى يتطلب نصًا."}
-                )
+                raise serializers.ValidationError({"text_body": "هذا النوع من المحتوى يتطلب نصًا."})
             if uploaded_file or external_url:
                 raise serializers.ValidationError(
-                    {
-                        "content_type": "لا يجب رفع ملف أو تحديد external_url مع محتوى نصي."
-                    }
+                    {"content_type": "لا يجب رفع ملف أو تحديد external_url مع محتوى نصي."}
                 )
 
         # WARNING: content attached to a lesson the creator doesn't teach.

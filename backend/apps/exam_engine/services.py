@@ -70,10 +70,10 @@ from apps.questions.models import Question
 
 from .models import AttemptAnswer, ExamAttempt
 
-
 # ============================================================================
 # Start / resume
 # ============================================================================
+
 
 def start_attempt(assessment, student, tenant):
     """Create (or resume) an ExamAttempt for this student on this assessment.
@@ -154,9 +154,7 @@ def start_attempt(assessment, student, tenant):
     option_order = _build_option_order(assessment, question_ids)
     max_score = _compute_max_score(assessment, question_ids)
     if max_score <= 0:
-        raise ValidationError(
-            "هذا الامتحان غير صالح — مجموع نقاط الأسئلة صفر. تواصل مع المعلم."
-        )
+        raise ValidationError("هذا الامتحان غير صالح — مجموع نقاط الأسئلة صفر. تواصل مع المعلم.")
 
     # Post-review fix: honor the *effective* window's closes_at, not just
     # assessment.ends_at. A target override may close the exam much sooner
@@ -210,6 +208,7 @@ def start_attempt(assessment, student, tenant):
 # Answer saving (autosave endpoint)
 # ============================================================================
 
+
 def save_answer(attempt, question_id, chosen_option_id=None, text_answer=""):
     """Upsert one answer. Called per-question from the exam UI (autosave).
 
@@ -255,10 +254,7 @@ def save_answer(attempt, question_id, chosen_option_id=None, text_answer=""):
         Question.QuestionType.ESSAY,
     ):
         text_answer = (text_answer or "").strip()
-        if (
-            not text_answer
-            and question.question_type == Question.QuestionType.SHORT_ANSWER
-        ):
+        if not text_answer and question.question_type == Question.QuestionType.SHORT_ANSWER:
             raise ValidationError("الإجابة النصية مطلوبة.")
         chosen_option = None
 
@@ -281,6 +277,7 @@ def save_answer(attempt, question_id, chosen_option_id=None, text_answer=""):
 # ============================================================================
 # Submit / grade
 # ============================================================================
+
 
 def _compute_expires_at(started_at, duration_minutes, closes_at):
     """Whichever is sooner: start + duration, or closes_at.
@@ -341,9 +338,7 @@ def submit_attempt(attempt, expired_notification=False):
             if link is None:
                 continue
             points = (
-                link.points_override
-                if link.points_override is not None
-                else link.question.points
+                link.points_override if link.points_override is not None else link.question.points
             )
             is_correct, awarded = _grade_one(answer, points)
             if is_correct is None:
@@ -386,14 +381,10 @@ def submit_attempt(attempt, expired_notification=False):
             notif_type="EXAM_SUBMITTED",
             title=f"محاولة جديدة: {attempt.assessment.title}",
             message=(
-                    f"{attempt.student.email} سلّم محاولته."
-                    + (" (انتهى الوقت تلقائيًا)." if expired_notification else "")   # ⬅️ مصحّح
-                    + (
-                        ""
-                        if attempt.status == ExamAttempt.Status.GRADED
-                        else " بحاجة لتصحيح يدوي."
-                    )
-                ),
+                f"{attempt.student.email} سلّم محاولته."
+                + (" (انتهى الوقت تلقائيًا)." if expired_notification else "")  # ⬅️ مصحّح
+                + ("" if attempt.status == ExamAttempt.Status.GRADED else " بحاجة لتصحيح يدوي.")
+            ),
             link=f"/assessments/{attempt.assessment_id}/results",
         )
 
@@ -403,10 +394,10 @@ def submit_attempt(attempt, expired_notification=False):
             notif_type="EXAM_GRADED",
             title=f"نتيجتك جاهزة: {attempt.assessment.title}",
             message=(
-                    f"درجتك: {attempt.score} / {attempt.max_score} "
-                    f"({round(attempt.percentage, 1)}%)."
-                    + (" (تم التسليم تلقائيًا لانتهاء الوقت)." if expired_notification else "")   # ⬅️ مصحّح
-                ),
+                f"درجتك: {attempt.score} / {attempt.max_score} "
+                f"({round(attempt.percentage, 1)}%)."
+                + (" (تم التسليم تلقائيًا لانتهاء الوقت)." if expired_notification else "")  # ⬅️ مصحّح
+            ),
             link=f"/results/{attempt.id}",
         )
 
@@ -416,6 +407,7 @@ def submit_attempt(attempt, expired_notification=False):
 # ============================================================================
 # Internal helpers
 # ============================================================================
+
 
 def _finalize_expired_attempt(attempt):
     """C-4: safely grade an expired attempt without letting a grading
@@ -449,6 +441,8 @@ def _finalize_expired_attempt(attempt):
 
     attempt.status = ExamAttempt.Status.EXPIRED
     attempt.save(update_fields=["status", "updated_at"])
+
+
 def _select_question_ids(assessment):
     """Return the ordered list of question IDs to serve.
 
@@ -456,9 +450,7 @@ def _select_question_ids(assessment):
     (shuffle). Randomization is sample-without-replacement when
     truncating, shuffle-in-place otherwise.
     """
-    links = list(
-        AssessmentQuestion.objects.filter(assessment=assessment).order_by("order")
-    )
+    links = list(AssessmentQuestion.objects.filter(assessment=assessment).order_by("order"))
     ids = [str(link.question_id) for link in links]
     if not ids:
         return []
@@ -493,11 +485,7 @@ def _compute_max_score(assessment, question_ids):
     for link in AssessmentQuestion.objects.filter(
         assessment=assessment, question_id__in=question_ids
     ).select_related("question"):
-        total += (
-            link.points_override
-            if link.points_override is not None
-            else link.question.points
-        )
+        total += link.points_override if link.points_override is not None else link.question.points
     return total
 
 
@@ -530,6 +518,7 @@ def _grade_one(answer, points):
 # Manual grading
 # ============================================================================
 
+
 def grade_essay_answer(attempt, question_id, awarded_points, is_correct, graded_by):
     """Grade a single ESSAY answer (staff-only).
 
@@ -543,11 +532,7 @@ def grade_essay_answer(attempt, question_id, awarded_points, is_correct, graded_
     ):
         raise ValidationError("لا يمكن تصحيح محاولة ليست في مرحلة التصحيح.")
 
-    answer = (
-        attempt.answers.filter(question_id=question_id)
-        .select_related("question")
-        .first()
-    )
+    answer = attempt.answers.filter(question_id=question_id).select_related("question").first()
     if answer is None:
         raise ValidationError("لا توجد إجابة لهذا السؤال في هذه المحاولة.")
     if answer.question.question_type != Question.QuestionType.ESSAY:
@@ -702,6 +687,7 @@ def compute_suspicion(attempt) -> dict:
 # Wave B2 — Reopen / Void (staff actions)
 # ============================================================================
 
+
 def reopen_attempt(attempt, extended_minutes=None):
     """Re-open a closed attempt so the student can continue.
 
@@ -832,6 +818,7 @@ def void_attempt(attempt, reason=""):
 # Wave C2 — Bulk grading (staff → many attempts in one request)
 # ============================================================================
 
+
 def bulk_grade_and_finalize(attempt_id, grades, finalize, graded_by, tenant):
     """Grade multiple essay answers on ONE attempt, then optionally finalize.
 
@@ -841,9 +828,7 @@ def bulk_grade_and_finalize(attempt_id, grades, finalize, graded_by, tenant):
     """
     try:
         attempt = (
-            ExamAttempt.objects.for_tenant(tenant)
-            .select_related("assessment")
-            .get(id=attempt_id)
+            ExamAttempt.objects.for_tenant(tenant).select_related("assessment").get(id=attempt_id)
         )
     except ExamAttempt.DoesNotExist:
         return {"attempt_id": str(attempt_id), "error": "المحاولة غير موجودة."}
@@ -879,9 +864,7 @@ def bulk_grade_and_finalize(attempt_id, grades, finalize, graded_by, tenant):
             recalculate_attempt_score(attempt)
 
             if finalize:
-                pending = attempt.answers.filter(
-                    awarded_points__isnull=True
-                ).exists()
+                pending = attempt.answers.filter(awarded_points__isnull=True).exists()
                 if not pending:
                     finalize_attempt(attempt)
 

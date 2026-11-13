@@ -16,8 +16,7 @@ pytestmark = pytest.mark.django_db
 
 
 HEADER = (
-    "bank_name,text,question_type,difficulty,topic,points,"
-    "options,accepted_answers,explanation\n"
+    "bank_name,text,question_type,difficulty,topic,points,options,accepted_answers,explanation\n"
 )
 
 

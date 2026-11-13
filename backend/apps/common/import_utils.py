@@ -11,7 +11,6 @@ need the same low-level parsing. Keeping one implementation here means:
 import csv
 import io
 
-
 MAX_IMPORT_BYTES = 10 * 1024 * 1024  # 10 MB — ~50k rows of CSV
 
 
@@ -52,9 +51,7 @@ def _read_csv(raw_bytes: bytes) -> list[dict]:
                 "تحقق من الفواصل داخل الخلايا. "
                 'استخدم علامات التنصيص "..." إذا احتجت لكتابة فاصلة داخل خلية.'
             )
-        rows.append(
-            {(k or "").strip().lower(): (v or "").strip() for k, v in r.items()}
-        )
+        rows.append({(k or "").strip().lower(): (v or "").strip() for k, v in r.items()})
     return rows
 
 

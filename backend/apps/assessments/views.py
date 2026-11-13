@@ -1,22 +1,27 @@
+import logging
+
 from django.db import models as django_models
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .services import visible_assessments_for_student, estimate_reach
+
 from apps.accounts.models import User
+from apps.assessments.services import get_targeted_students
 from apps.audit.services import log_action
 from apps.common.permissions import (
-   HasRole,
     IsCreatorOrAdmin,
     IsStaffForWriteActions,
     IsStaffMember,
     IsTenantMember,
 )
 from apps.common.views import TenantScopedViewSet, YearAwareViewSet
+from apps.notifications.services import notify_many
+from apps.people.models import TeacherAssignment
 from apps.tenants.permissions import CanExportTenant, user_can
-from rest_framework.permissions import IsAuthenticated
+
 from .models import Assessment, AssessmentQuestion, AssessmentTarget
 from .serializers import (
     AssessmentForStudentSerializer,
@@ -24,18 +29,19 @@ from .serializers import (
     AssessmentSerializer,
     AssessmentTargetSerializer,
 )
-from .services import visible_assessments_for_student
-from apps.assessments.services import get_targeted_students
-from apps.people.models import TeacherAssignment
-from apps.notifications.services import notify_many
-import logging
+from .services import estimate_reach, visible_assessments_for_student
+
 logger = logging.getLogger(__name__)
+
 
 class AssessmentViewSet(YearAwareViewSet):
     """Unchanged from Phase 8 — visibility mirrors Question's shape."""
 
     queryset = Assessment.objects.all()
-    permission_classes = TenantScopedViewSet.permission_classes + [IsStaffForWriteActions, IsCreatorOrAdmin]
+    permission_classes = TenantScopedViewSet.permission_classes + [
+        IsStaffForWriteActions,
+        IsCreatorOrAdmin,
+    ]
     filterset_fields = ["assessment_type", "status"]
     search_fields = ["title", "description"]
     ordering_fields = [
@@ -65,9 +71,8 @@ class AssessmentViewSet(YearAwareViewSet):
         )
 
     def perform_create(self, serializer):
-        if (
-            self.request.user.role == User.Role.TEACHER
-            and not user_can(self.request.user, "teachers_can_create_assessments")
+        if self.request.user.role == User.Role.TEACHER and not user_can(
+            self.request.user, "teachers_can_create_assessments"
         ):
             raise PermissionDenied("إنشاء الامتحانات غير مسموح لك حسب إعدادات المؤسسة.")
         super().perform_create(serializer)
@@ -87,6 +92,7 @@ class AssessmentViewSet(YearAwareViewSet):
             action="assessment.updated",
             obj=serializer.instance,
         )
+
     def perform_destroy(self, instance):
         if self.request.user.role == User.Role.ADMIN and not user_can(
             self.request.user, "admins_can_delete_assessments"
@@ -111,6 +117,7 @@ class AssessmentViewSet(YearAwareViewSet):
         Convert to a clean 400 with a clear "archive instead" recommendation
         (matches the pattern used by QuestionBankViewSet + QuestionViewSet)."""
         from django.db.models.deletion import RestrictedError
+
         try:
             return super().destroy(request, *args, **kwargs)
         except RestrictedError:
@@ -126,6 +133,7 @@ class AssessmentViewSet(YearAwareViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
     @action(detail=True, methods=["post"])
     def publish(self, request, pk=None):
         """POST /assessments/<id>/publish/ — DRAFT → PUBLISHED.
@@ -137,6 +145,7 @@ class AssessmentViewSet(YearAwareViewSet):
         and no notifications delivered.
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         assessment = self.get_object()
@@ -161,9 +170,7 @@ class AssessmentViewSet(YearAwareViewSet):
             errors["questions"] = "يجب إضافة سؤال واحد على الأقل قبل النشر."
         else:
             unapproved = [
-                str(link.question_id)
-                for link in links
-                if link.question.review_status != "APPROVED"
+                str(link.question_id) for link in links if link.question.review_status != "APPROVED"
             ]
             if unapproved:
                 errors["questions"] = f"بعض الأسئلة لم تعد معتمدة: {', '.join(unapproved)}"
@@ -193,8 +200,7 @@ class AssessmentViewSet(YearAwareViewSet):
                 notif_type="EXAM_PUBLISHED",
                 title=f"امتحان جديد: {assessment.title}",
                 message=(
-                    f"تم نشر امتحان جديد "
-                    f"({assessment.get_assessment_type_display()}). ابدأ الآن."
+                    f"تم نشر امتحان جديد ({assessment.get_assessment_type_display()}). ابدأ الآن."
                 ),
                 link="/assessments",
             )
@@ -205,13 +211,14 @@ class AssessmentViewSet(YearAwareViewSet):
             )
 
         return Response(AssessmentSerializer(assessment).data)
+
     @action(detail=True, methods=["get"])
     def reach(self, request, pk=None):
-            """GET /assessments/<id>/reach/ — how many students this assessment
-            reaches, for the wizard's targeting step. Staff-only by virtue of
-            the viewset's permissions; a student would not call this."""
-            assessment = self.get_object()
-            return Response({"students": estimate_reach(assessment)})
+        """GET /assessments/<id>/reach/ — how many students this assessment
+        reaches, for the wizard's targeting step. Staff-only by virtue of
+        the viewset's permissions; a student would not call this."""
+        assessment = self.get_object()
+        return Response({"students": estimate_reach(assessment)})
 
     def _check_teacher_results_access(self, assessment):
         user = self.request.user
@@ -230,9 +237,13 @@ class AssessmentViewSet(YearAwareViewSet):
                 course__subject_id=subject_id,
                 course__grade_id=grade_id,
             )
-        has_assignment = bool(subject_grade_pairs) and TeacherAssignment.objects.for_tenant(
-            self.request.tenant
-        ).filter(teacher=user).filter(assignment_scope).exists()
+        has_assignment = (
+            bool(subject_grade_pairs)
+            and TeacherAssignment.objects.for_tenant(self.request.tenant)
+            .filter(teacher=user)
+            .filter(assignment_scope)
+            .exists()
+        )
         if not has_assignment:
             raise PermissionDenied("عرض نتائج هذا الامتحان غير مسموح لك.")
 
@@ -257,8 +268,9 @@ class AssessmentViewSet(YearAwareViewSet):
         Allowed for DRAFT and PUBLISHED only — a CLOSED/ARCHIVED assessment
         isn't meaningful to preview.
         """
-        from apps.exam_engine.serializers import QuestionForStudentSerializer
         from decimal import Decimal
+
+        from apps.exam_engine.serializers import QuestionForStudentSerializer
 
         assessment = self.get_object()
 
@@ -276,9 +288,7 @@ class AssessmentViewSet(YearAwareViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        links = list(
-            assessment.assessment_questions.select_related("question").order_by("order")
-        )
+        links = list(assessment.assessment_questions.select_related("question").order_by("order"))
         if not links:
             return Response(
                 {
@@ -292,11 +302,7 @@ class AssessmentViewSet(YearAwareViewSet):
 
         questions = [link.question for link in links]
         max_score = sum(
-            (
-                link.points_override
-                if link.points_override is not None
-                else link.question.points
-            )
+            (link.points_override if link.points_override is not None else link.question.points)
             for link in links
         ) or Decimal("0")
 
@@ -330,9 +336,8 @@ class AssessmentViewSet(YearAwareViewSet):
         """
         from .services import duplicate_assessment
 
-        if (
-            request.user.role == User.Role.TEACHER
-            and not user_can(request.user, "teachers_can_create_assessments")
+        if request.user.role == User.Role.TEACHER and not user_can(
+            request.user, "teachers_can_create_assessments"
         ):
             raise PermissionDenied("إنشاء الامتحانات غير مسموح لك حسب إعدادات المؤسسة.")
         source = self.get_object()
@@ -414,9 +419,7 @@ class AssessmentViewSet(YearAwareViewSet):
         ]
 
         header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_fill = PatternFill(
-            start_color="2B3A67", end_color="2B3A67", fill_type="solid"
-        )
+        header_fill = PatternFill(start_color="2B3A67", end_color="2B3A67", fill_type="solid")
         center = Alignment(horizontal="center", vertical="center")
 
         for col_idx, header in enumerate(headers, start=1):
@@ -437,10 +440,7 @@ class AssessmentViewSet(YearAwareViewSet):
             return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
         for row_idx, attempt in enumerate(attempts, start=2):
-            name = (
-                f"{attempt.student.first_name} {attempt.student.last_name}".strip()
-                or "—"
-            )
+            name = f"{attempt.student.first_name} {attempt.student.last_name}".strip() or "—"
             passed_ar = (
                 "ناجح"
                 if attempt.is_passed is True
@@ -468,9 +468,7 @@ class AssessmentViewSet(YearAwareViewSet):
             ws.cell(row=row_idx, column=10, value=fmt(attempt.submitted_at))
             ws.cell(row=row_idx, column=11, value=fmt(attempt.graded_at))
 
-        for col_idx, width in enumerate(
-            [24, 32, 10, 18, 10, 10, 12, 12, 18, 18, 18], start=1
-        ):
+        for col_idx, width in enumerate([24, 32, 10, 18, 10, 10, 12, 12, 18, 18, 18], start=1):
             ws.column_dimensions[get_column_letter(col_idx)].width = width
 
         ws.freeze_panes = "A2"
@@ -486,9 +484,7 @@ class AssessmentViewSet(YearAwareViewSet):
 
         response = HttpResponse(
             buf.getvalue(),
-            content_type=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
+            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
@@ -500,6 +496,7 @@ class AssessmentViewSet(YearAwareViewSet):
         )
 
         return response
+
     @action(
         detail=True,
         methods=["get"],
@@ -519,12 +516,11 @@ class AssessmentViewSet(YearAwareViewSet):
         Hardest/easiest = sorted by correct% across graded answers only
         (a question with 0 graded answers isn't rankable).
         """
-        from collections import defaultdict
-        from decimal import Decimal
         from apps.billing.services import require_feature
+
         require_feature(request.tenant, "advanced_analytics")
-        from collections import defaultdict
         from django.db.models import Avg, Count, Q
+
         from apps.exam_engine.models import AttemptAnswer, ExamAttempt
 
         assessment = self.get_object()
@@ -542,16 +538,11 @@ class AssessmentViewSet(YearAwareViewSet):
 
         passed_count = graded.filter(is_passed=True).count()
         failed_count = graded.filter(is_passed=False).count()
-        pass_rate = (
-            round(passed_count / graded_count * 100, 1) if graded_count > 0 else None
-        )
+        pass_rate = round(passed_count / graded_count * 100, 1) if graded_count > 0 else None
 
         # ---- Score aggregation ----
         scores = list(graded.values_list("score", "max_score"))
-        percentages = [
-            float(s) / float(m) * 100 if m and float(m) > 0 else 0.0
-            for s, m in scores
-        ]
+        percentages = [float(s) / float(m) * 100 if m and float(m) > 0 else 0.0 for s, m in scores]
         avg_pct = round(sum(percentages) / len(percentages), 1) if percentages else None
         highest_score = graded.order_by("-score").values_list("score", flat=True).first()
         lowest_score = graded.order_by("score").values_list("score", flat=True).first()
@@ -562,8 +553,7 @@ class AssessmentViewSet(YearAwareViewSet):
             idx = min(int(pct // 10), 9)
             buckets[idx] += 1
         distribution = [
-            {"bucket": f"{i * 10}-{(i + 1) * 10}", "count": buckets[i]}
-            for i in range(10)
+            {"bucket": f"{i * 10}-{(i + 1) * 10}", "count": buckets[i]} for i in range(10)
         ]
 
         # ---- Per-question stats — ONE aggregation query ----
@@ -571,22 +561,17 @@ class AssessmentViewSet(YearAwareViewSet):
             attempt__assessment=assessment,
             attempt__status__in=["SUBMITTED", "GRADED"],
         )
-        stats_by_q = (
-            base_answers.values("question_id")
-            .annotate(
-                total=Count("id"),
-                correct=Count("id", filter=Q(is_correct=True)),
-                wrong=Count("id", filter=Q(is_correct=False)),
-                pending=Count("id", filter=Q(is_correct__isnull=True)),
-                avg_pts=Avg("awarded_points"),
-            )
+        stats_by_q = base_answers.values("question_id").annotate(
+            total=Count("id"),
+            correct=Count("id", filter=Q(is_correct=True)),
+            wrong=Count("id", filter=Q(is_correct=False)),
+            pending=Count("id", filter=Q(is_correct__isnull=True)),
+            avg_pts=Avg("awarded_points"),
         )
         stats_map = {}
         for row in stats_by_q:
             graded_ans = (row["correct"] or 0) + (row["wrong"] or 0)
-            pct = (
-                (row["correct"] / graded_ans * 100) if graded_ans > 0 else None
-            )
+            pct = (row["correct"] / graded_ans * 100) if graded_ans > 0 else None
             stats_map[str(row["question_id"])] = {
                 "total": row["total"],
                 "correct": row["correct"],
@@ -597,9 +582,7 @@ class AssessmentViewSet(YearAwareViewSet):
                 "avg_pts": row["avg_pts"],
             }
 
-        links = list(
-            assessment.assessment_questions.select_related("question").order_by("order")
-        )
+        links = list(assessment.assessment_questions.select_related("question").order_by("order"))
         question_stats = []
         for link in links:
             q = link.question
@@ -630,9 +613,7 @@ class AssessmentViewSet(YearAwareViewSet):
         # ---- Hardest / easiest (only rankable — has graded answers) ----
         rankable = [q for q in question_stats if q["correct_percentage"] is not None]
         hardest = sorted(rankable, key=lambda x: x["correct_percentage"])[:5]
-        easiest = sorted(
-            rankable, key=lambda x: x["correct_percentage"], reverse=True
-        )[:5]
+        easiest = sorted(rankable, key=lambda x: x["correct_percentage"], reverse=True)[:5]
 
         # ---- Reach: how many students the assessment targets ----
         from .services import estimate_reach
@@ -659,12 +640,8 @@ class AssessmentViewSet(YearAwareViewSet):
                     "failed": failed_count,
                     "pass_rate": pass_rate,
                     "avg_percentage": avg_pct,
-                    "highest_score": (
-                        str(highest_score) if highest_score is not None else None
-                    ),
-                    "lowest_score": (
-                        str(lowest_score) if lowest_score is not None else None
-                    ),
+                    "highest_score": (str(highest_score) if highest_score is not None else None),
+                    "lowest_score": (str(lowest_score) if lowest_score is not None else None),
                     "targeted_students": estimate_reach(assessment),
                 },
                 "distribution": distribution,
@@ -674,12 +651,17 @@ class AssessmentViewSet(YearAwareViewSet):
                 "has_data": total_attempts > 0,
             }
         )
+
+
 class AssessmentQuestionViewSet(TenantScopedViewSet):
     """Read visibility: staff-only. A STUDENT never touches this endpoint."""
 
     queryset = AssessmentQuestion.objects.all()
     serializer_class = AssessmentQuestionSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [IsStaffMember, IsStaffForWriteActions]
+    permission_classes = TenantScopedViewSet.permission_classes + [
+        IsStaffMember,
+        IsStaffForWriteActions,
+    ]
     filterset_fields = ["assessment", "question"]
 
     def get_queryset(self):
@@ -714,7 +696,10 @@ class AssessmentTargetViewSet(TenantScopedViewSet):
 
     queryset = AssessmentTarget.objects.all()
     serializer_class = AssessmentTargetSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [IsStaffMember, IsStaffForWriteActions]
+    permission_classes = TenantScopedViewSet.permission_classes + [
+        IsStaffMember,
+        IsStaffForWriteActions,
+    ]
     filterset_fields = ["assessment", "target_type"]
 
     def get_queryset(self):

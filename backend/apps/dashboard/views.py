@@ -2,16 +2,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
 from apps.common.mixins import TenantContextMixin
 from apps.common.permissions import HasRole, IsTenantMember
 
 from .services import (
     admin_dashboard,
+    admin_reports,
     normalize_days,
     student_dashboard,
     teacher_dashboard,
-    admin_reports,
 )
 
 
@@ -37,7 +36,8 @@ class StudentDashboardView(TenantContextMixin, APIView):
     def get(self, request):
         days = normalize_days(request.query_params.get("days"), default=30)
         return Response(student_dashboard(request.tenant, request.user, days=days))
-    
+
+
 class AdminReportsView(TenantContextMixin, APIView):
     """GET /dashboard/reports/ — operational reports for OWNER/ADMIN.
 

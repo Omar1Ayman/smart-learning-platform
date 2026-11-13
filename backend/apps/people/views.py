@@ -1,8 +1,8 @@
 from django.db import IntegrityError, models, transaction
-
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.accounts.models import User
@@ -63,9 +63,7 @@ class EnrollmentViewSet(YearAwareViewSet):
     serializer_class = EnrollmentSerializer
     block_create_while_closing = True
     lifecycle_managed_actions = {"promote"}
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["group", "academic_year", "status", "term", "group__grade"]
     search_fields = [
         "student__email",
@@ -113,18 +111,14 @@ class EnrollmentViewSet(YearAwareViewSet):
         # TEACHER — narrowed to their assignment scope, then optionally
         # further narrowed by grade.
         if user.role == User.Role.TEACHER:
-            assignments = TeacherAssignment.objects.for_tenant(
-                self.request.tenant
-            ).filter(teacher=user)
+            assignments = TeacherAssignment.objects.for_tenant(self.request.tenant).filter(
+                teacher=user
+            )
             narrowed_group_ids = list(
-                assignments.filter(groups__isnull=False).values_list(
-                    "groups__id", flat=True
-                )
+                assignments.filter(groups__isnull=False).values_list("groups__id", flat=True)
             )
             whole_grade_ids = list(
-                assignments.filter(groups__isnull=True).values_list(
-                    "course__grade_id", flat=True
-                )
+                assignments.filter(groups__isnull=True).values_list("course__grade_id", flat=True)
             )
             scoped = qs.filter(
                 models.Q(group_id__in=narrowed_group_ids)
@@ -157,9 +151,7 @@ class EnrollmentViewSet(YearAwareViewSet):
         """POST /api/v1/enrollments/promote/ — spec #25:
         Preview -> Validation -> Confirmation -> Atomic Transaction."""
         self.check_permissions(request)
-        serializer = PromotionRequestSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = PromotionRequestSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
         target_year = serializer.validated_data["target_academic_year"]
@@ -170,9 +162,7 @@ class EnrollmentViewSet(YearAwareViewSet):
             from apps.academics.models import AcademicYear
 
             if target_year.status != AcademicYear.Status.ACTIVE:
-                raise PermissionDenied(
-                    "يجب تفعيل السنة الهدف قبل تنفيذ ترقية أو نقل الطلاب."
-                )
+                raise PermissionDenied("يجب تفعيل السنة الهدف قبل تنفيذ ترقية أو نقل الطلاب.")
             for item in items:
                 source_year = item["enrollment"].academic_year
                 if source_year.status in (
@@ -180,8 +170,7 @@ class EnrollmentViewSet(YearAwareViewSet):
                     AcademicYear.Status.ARCHIVED,
                 ):
                     raise PermissionDenied(
-                        f"لا يمكن تعديل تسجيلات السنة «{source_year.name}» "
-                        "في حالتها الحالية."
+                        f"لا يمكن تعديل تسجيلات السنة «{source_year.name}» في حالتها الحالية."
                     )
 
         def describe(item, new_enrollment=None):
@@ -192,18 +181,12 @@ class EnrollmentViewSet(YearAwareViewSet):
                 "from_enrollment": str(enrollment.id),
                 "action": item["action"],
                 "to_group": str(target_group.id) if target_group else None,
-                "to_academic_year": (
-                    str(target_year.id) if item["action"] != "GRADUATE" else None
-                ),
-                "new_enrollment": (
-                    str(new_enrollment.id) if new_enrollment else None
-                ),
+                "to_academic_year": (str(target_year.id) if item["action"] != "GRADUATE" else None),
+                "new_enrollment": (str(new_enrollment.id) if new_enrollment else None),
             }
 
         if dry_run:
-            return Response(
-                {"dry_run": True, "results": [describe(item) for item in items]}
-            )
+            return Response({"dry_run": True, "results": [describe(item) for item in items]})
 
         results = []
         try:
@@ -250,9 +233,7 @@ class EnrollmentViewSet(YearAwareViewSet):
                         enrollment.status = Enrollment.Status.TRANSFERRED
                     enrollment.save(update_fields=["status"])
 
-                    results.append(
-                        describe(item, new_enrollment=new_enrollment)
-                    )
+                    results.append(describe(item, new_enrollment=new_enrollment))
 
         except IntegrityError:
             return Response(
@@ -296,9 +277,7 @@ class EnrollmentViewSet(YearAwareViewSet):
 
         enrollment = self.get_object()
 
-        serializer = TermTransitionSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = TermTransitionSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -316,8 +295,6 @@ class EnrollmentViewSet(YearAwareViewSet):
             )
 
         return Response(
-            EnrollmentSerializer(
-                new_enrollment, context={"request": request}
-            ).data,
+            EnrollmentSerializer(new_enrollment, context={"request": request}).data,
             status=drf_status.HTTP_201_CREATED,
         )

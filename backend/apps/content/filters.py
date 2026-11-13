@@ -5,6 +5,7 @@ can filter server-side with one query. The alternative (client-side on
 the loaded page) breaks silently once a school has more than ~100
 content items — the tabs would show only items from page 1.
 """
+
 import django_filters as df
 
 from .models import Content

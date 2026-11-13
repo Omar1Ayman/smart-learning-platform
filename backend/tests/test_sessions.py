@@ -163,7 +163,5 @@ def test_revoke_all_keeps_current(api_client):
     assert current.revoked_at is None
 
     # The OTHER session must be revoked.
-    others = UserSession.objects.filter(user=user, revoked_at__isnull=True).exclude(
-        id=current.id
-    )
+    others = UserSession.objects.filter(user=user, revoked_at__isnull=True).exclude(id=current.id)
     assert others.count() == 0

@@ -5,15 +5,12 @@ from django.utils import timezone
 
 from apps.assessments.models import AssessmentTarget
 from apps.exam_engine.models import ExamAttempt
-from apps.questions.models import Question
 
 from .conftest import login_as
 from .factories import (
     AssessmentFactory,
     EnrollmentFactory,
     GroupFactory,
-    QuestionBankFactory,
-    QuestionFactory,
     StudentUserFactory,
     TeacherUserFactory,
     UserFactory,
@@ -23,6 +20,7 @@ pytestmark = pytest.mark.django_db
 
 
 # ---------- Admin ----------
+
 
 def test_admin_dashboard_returns_metrics(api_client):
     tenant = UserFactory(role="OWNER").tenant
@@ -54,12 +52,14 @@ def test_student_cannot_access_admin_dashboard(api_client):
 
 # ---------- Teacher ----------
 
+
 def test_teacher_dashboard_counts_only_their_students(api_client):
     group = GroupFactory()
     teacher_a = TeacherUserFactory(tenant=group.tenant)
     teacher_b = TeacherUserFactory(tenant=group.tenant)
-    from .factories import CourseFactory
     from apps.people.models import TeacherAssignment
+
+    from .factories import CourseFactory
 
     course = CourseFactory(grade=group.grade, tenant=group.tenant)
     assignment = TeacherAssignment.objects.create(
@@ -77,6 +77,7 @@ def test_teacher_dashboard_counts_only_their_students(api_client):
 
 
 # ---------- Student ----------
+
 
 def test_student_dashboard_shows_upcoming_assessments(api_client):
     group = GroupFactory()

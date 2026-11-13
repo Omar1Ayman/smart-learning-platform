@@ -107,10 +107,12 @@ def test_import_dry_run_returns_preview(api_client):
     group = GroupFactory(tenant=tenant, academic_year=year)
 
     client = login_as(api_client, owner)
-    csv_data = _csv_bytes([
-        "s1@test.com,Ahmed,Ali," + group.name,
-        "s2@test.com,Fatma,Samir," + group.name,
-    ])
+    csv_data = _csv_bytes(
+        [
+            "s1@test.com,Ahmed,Ali," + group.name,
+            "s2@test.com,Fatma,Samir," + group.name,
+        ]
+    )
 
     resp = client.post(
         "/api/v1/tenant/import/students/",
@@ -137,10 +139,12 @@ def test_import_creates_students_and_enrollments(api_client):
     group = GroupFactory(tenant=tenant, academic_year=year)
 
     client = login_as(api_client, owner)
-    csv_data = _csv_bytes([
-        "new1@test.com,Ahmed,Ali," + group.name,
-        "new2@test.com,Fatma,Samir," + group.name,
-    ])
+    csv_data = _csv_bytes(
+        [
+            "new1@test.com,Ahmed,Ali," + group.name,
+            "new2@test.com,Fatma,Samir," + group.name,
+        ]
+    )
 
     resp = client.post(
         "/api/v1/tenant/import/students/",
@@ -166,10 +170,12 @@ def test_import_rejects_when_any_row_has_errors(api_client):
     group = GroupFactory(tenant=tenant, academic_year=year)
 
     client = login_as(api_client, owner)
-    csv_data = _csv_bytes([
-        "good@test.com,Good,Row," + group.name,
-        "bad,Bad,Row," + group.name,  # invalid email
-    ])
+    csv_data = _csv_bytes(
+        [
+            "good@test.com,Good,Row," + group.name,
+            "bad,Bad,Row," + group.name,  # invalid email
+        ]
+    )
 
     resp = client.post(
         "/api/v1/tenant/import/students/",
@@ -195,10 +201,12 @@ def test_import_skips_existing_students(api_client):
     StudentUserFactory(tenant=tenant, email="existing@test.com")
 
     client = login_as(api_client, owner)
-    csv_data = _csv_bytes([
-        "existing@test.com,Ali,Hassan," + group.name,
-        "fresh@test.com,New,Student," + group.name,
-    ])
+    csv_data = _csv_bytes(
+        [
+            "existing@test.com,Ali,Hassan," + group.name,
+            "fresh@test.com,New,Student," + group.name,
+        ]
+    )
 
     resp = client.post(
         "/api/v1/tenant/import/students/",

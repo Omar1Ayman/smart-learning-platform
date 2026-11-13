@@ -27,9 +27,7 @@ if len(SECRET_KEY) < 50 or SECRET_KEY in {
 # backend domain and any custom domain wired to the service.
 ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", cast=Csv())
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
-    raise RuntimeError(
-        "DJANGO_ALLOWED_HOSTS must contain explicit production hostnames."
-    )
+    raise RuntimeError("DJANGO_ALLOWED_HOSTS must contain explicit production hostnames.")
 
 required_database_variables = (
     "DB_NAME",
@@ -42,9 +40,7 @@ missing_database_variables = [
 ]
 if missing_database_variables:
     raise RuntimeError(
-        "Set the required PostgreSQL variables: "
-        + ", ".join(missing_database_variables)
-        + "."
+        "Set the required PostgreSQL variables: " + ", ".join(missing_database_variables) + "."
     )
 
 if not FRONTEND_URL.startswith("https://"):  # noqa: F405
@@ -88,9 +84,7 @@ CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", cast=Csv())
 if not CORS_ALLOWED_ORIGINS or any(
     not origin.startswith("https://") for origin in CORS_ALLOWED_ORIGINS
 ):
-    raise RuntimeError(
-        "CORS_ALLOWED_ORIGINS must contain explicit HTTPS frontend origins."
-    )
+    raise RuntimeError("CORS_ALLOWED_ORIGINS must contain explicit HTTPS frontend origins.")
 CORS_ALLOW_CREDENTIALS = True
 
 # CSRF trusted origins are needed for Django admin login across domains.
@@ -107,13 +101,9 @@ if not CSRF_TRUSTED_ORIGINS or any(
 # a valid token, so the practical exposure is limited. When a custom
 # root domain is available, switch back to Strict and host both services
 # under that domain.
-REFRESH_TOKEN_COOKIE_SAMESITE = config(
-    "REFRESH_TOKEN_COOKIE_SAMESITE", default="None"
-)
+REFRESH_TOKEN_COOKIE_SAMESITE = config("REFRESH_TOKEN_COOKIE_SAMESITE", default="None")
 if REFRESH_TOKEN_COOKIE_SAMESITE not in ("None", "Strict"):
-    raise RuntimeError(
-        "REFRESH_TOKEN_COOKIE_SAMESITE must be either 'None' or 'Strict'."
-    )
+    raise RuntimeError("REFRESH_TOKEN_COOKIE_SAMESITE must be either 'None' or 'Strict'.")
 
 # --- Logging ---
 # Send everything to stdout so platform log collectors (Railway/Render/

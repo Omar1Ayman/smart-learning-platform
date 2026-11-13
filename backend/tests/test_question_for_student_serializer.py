@@ -12,7 +12,7 @@ import pytest
 from apps.exam_engine.serializers import QuestionForStudentSerializer
 from apps.questions.models import Question
 
-from .factories import QuestionBankFactory, QuestionFactory, TenantFactory
+from .factories import QuestionBankFactory, QuestionFactory
 
 pytestmark = pytest.mark.django_db
 

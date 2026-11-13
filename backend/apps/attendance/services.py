@@ -6,17 +6,19 @@ marking, and reporting helpers.
 import base64
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import datetime, timedelta
-import logging
+
 from django.db import transaction
 from django.utils import timezone as dj_tz
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 
 from apps.academics.models import Group
 from apps.people.models import Enrollment, TeacherAssignment
 
 from .models import AttendanceRecord, AttendanceSession
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -38,7 +40,7 @@ def _window_index(session: AttendanceSession, now: datetime | None = None) -> in
 
 
 def _token_for_window(session: AttendanceSession, window_index: int) -> str:
-    message = f"{session.id}:{window_index}".encode("utf-8")
+    message = f"{session.id}:{window_index}".encode()
     key = session.qr_secret.encode("utf-8")
     digest = hmac.new(key, message, hashlib.sha256).digest()
     return base64.urlsafe_b64encode(digest[:9]).decode("ascii").rstrip("=")
@@ -59,9 +61,7 @@ def current_qr_payload(session: AttendanceSession) -> dict:
 
     token = _token_for_window(session, window_index)
 
-    elapsed_in_window = (
-        now - session.opened_at
-    ).total_seconds() % session.qr_window_seconds
+    elapsed_in_window = (now - session.opened_at).total_seconds() % session.qr_window_seconds
     remaining = session.qr_window_seconds - int(elapsed_in_window)
 
     frontend_url = settings.FRONTEND_URL.rstrip("/")
@@ -124,9 +124,7 @@ def models_q_group_or_grade(group: Group):
 
 def _effective_late_boundary(session: AttendanceSession) -> datetime:
     local_tz = dj_tz.get_current_timezone()
-    scheduled_start = dj_tz.make_aware(
-        datetime.combine(session.date, session.start_time), local_tz
-    )
+    scheduled_start = dj_tz.make_aware(datetime.combine(session.date, session.start_time), local_tz)
     base = scheduled_start
     if session.opened_at and session.opened_at > base:
         base = session.opened_at
@@ -235,12 +233,12 @@ def close_session(session: AttendanceSession, *, by_user) -> AttendanceSession:
             if committed is not None:
                 send_absence_notifications(committed, skip_already_notified=True)
         except Exception:  # noqa: BLE001 — never fail the close
-            logger.exception(
-                "send_absence_notifications failed for session %s", session_id
-            )
+            logger.exception("send_absence_notifications failed for session %s", session_id)
 
     transaction.on_commit(_dispatch)
     return session
+
+
 @transaction.atomic
 def reopen_session(session: AttendanceSession, *, by_user) -> AttendanceSession:
     if session.status != AttendanceSession.Status.CLOSED:
@@ -282,20 +280,22 @@ def mark_via_qr(
     if not verify_qr_token(session, token):
         raise ValidationError("رمز QR غير صالح أو منتهي الصلاحية.")
 
-    enrolled = Enrollment.objects.for_tenant(session.tenant).filter(
-        student=student,
-        group=session.group,
-        status=Enrollment.Status.ACTIVE,
-    ).exists()
+    enrolled = (
+        Enrollment.objects.for_tenant(session.tenant)
+        .filter(
+            student=student,
+            group=session.group,
+            status=Enrollment.Status.ACTIVE,
+        )
+        .exists()
+    )
     if not enrolled:
         raise ValidationError("أنت غير مسجل في هذه المجموعة.")
 
     now = dj_tz.now()
     late_boundary = _effective_late_boundary(session)
     new_status = (
-        AttendanceRecord.Status.PRESENT
-        if now <= late_boundary
-        else AttendanceRecord.Status.LATE
+        AttendanceRecord.Status.PRESENT if now <= late_boundary else AttendanceRecord.Status.LATE
     )
 
     record = (
@@ -361,11 +361,7 @@ def manual_mark(
         defaults={
             "status": status,
             "check_in_method": AttendanceRecord.Method.MANUAL,
-            "check_in_at": (
-                dj_tz.now()
-                if status != AttendanceRecord.Status.ABSENT
-                else None
-            ),
+            "check_in_at": (dj_tz.now() if status != AttendanceRecord.Status.ABSENT else None),
             "marked_by": by_user,
             "notes": notes,
         },
@@ -373,9 +369,7 @@ def manual_mark(
     if not created:
         record.status = status
         record.check_in_method = AttendanceRecord.Method.MANUAL
-        record.check_in_at = (
-            dj_tz.now() if status != AttendanceRecord.Status.ABSENT else None
-        )
+        record.check_in_at = dj_tz.now() if status != AttendanceRecord.Status.ABSENT else None
         record.marked_by = by_user
         if notes:
             record.notes = notes
@@ -440,9 +434,7 @@ def _send_absence_email(session, record, is_warning: bool = False) -> bool:
 
     tenant = session.tenant
     parent_name = student.parent_name or "ولي الأمر"
-    student_name = (
-        f"{student.first_name} {student.last_name}".strip() or student.email
-    )
+    student_name = f"{student.first_name} {student.last_name}".strip() or student.email
 
     consecutive = _consecutive_absences(student, tenant) if is_warning else None
 
@@ -474,18 +466,12 @@ def _send_absence_email(session, record, is_warning: bool = False) -> bool:
         f"{context['session_end']}).\n"
     )
     if is_warning and consecutive:
-        fallback_body += (
-            f"\n⚠️ هذه {consecutive} غيابات متتالية — نرجو التواصل.\n"
-        )
+        fallback_body += f"\n⚠️ هذه {consecutive} غيابات متتالية — نرجو التواصل.\n"
 
     email_sent = False
     try:
-        html_body = render_to_string(
-            "attendance/emails/absence.html", context
-        )
-        text_body = render_to_string(
-            "attendance/emails/absence.txt", context
-        )
+        html_body = render_to_string("attendance/emails/absence.html", context)
+        text_body = render_to_string("attendance/emails/absence.txt", context)
     except TemplateDoesNotExist:
         html_body = None
         text_body = fallback_body
@@ -507,20 +493,15 @@ def _send_absence_email(session, record, is_warning: bool = False) -> bool:
     # In-app notification for every linked parent account.
     # NOTE: ParentChild extends models.Model (not TenantScopedModel), so
     # we filter by tenant explicitly instead of using .for_tenant().
-    parent_links = (
-        ParentChild.objects.filter(tenant=tenant, student=student)
-        .select_related("parent")
+    parent_links = ParentChild.objects.filter(tenant=tenant, student=student).select_related(
+        "parent"
     )
     for link in parent_links:
         try:
             notify(
                 link.parent,
                 notif_type="ABSENCE_ALERT",
-                title=(
-                    f"⚠️ غياب متكرر: {student_name}"
-                    if is_warning
-                    else f"غياب: {student_name}"
-                ),
+                title=(f"⚠️ غياب متكرر: {student_name}" if is_warning else f"غياب: {student_name}"),
                 message=(
                     f"غاب عن {session.group.name} يوم {session.date} "
                     f"({context['session_start']} - {context['session_end']})"
@@ -561,9 +542,9 @@ def send_absence_notifications(session, *, skip_already_notified: bool = True) -
 
     threshold = int(policy.get("consecutive_absence_threshold", 3) or 3)
 
-    absents = session.records.filter(
-        status=AttendanceRecord.Status.ABSENT
-    ).select_related("student")
+    absents = session.records.filter(status=AttendanceRecord.Status.ABSENT).select_related(
+        "student"
+    )
 
     sent = 0
     skipped = 0

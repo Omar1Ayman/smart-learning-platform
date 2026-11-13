@@ -4,21 +4,20 @@ from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
-from apps.tenants.permissions import user_can
-from rest_framework.exceptions import PermissionDenied
+
 from apps.accounts.models import User
 from apps.audit.services import log_action
 from apps.common.permissions import (
-    HasRole,
     IsCreatorOrAdmin,
     IsStaffForWriteActions,
     IsStaffMember,
 )
 from apps.common.views import TenantScopedViewSet, YearAwareViewSet
-from apps.tenants.permissions import CanApproveQuestions
 from apps.notifications.services import notify
+from apps.tenants.permissions import CanApproveQuestions, user_can
 
 from .filters import QuestionFilter
 from .models import Question, QuestionBank
@@ -84,24 +83,34 @@ class QuestionBankViewSet(YearAwareViewSet):
         target_bank_id = request.data.get("target_bank")
 
         if not target_bank_id:
-            return Response({"error": {"detail": "يجب تحديد بنك الهدف."}}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": {"detail": "يجب تحديد بنك الهدف."}}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             target_bank = QuestionBank.objects.for_tenant(request.tenant).get(id=target_bank_id)
         except QuestionBank.DoesNotExist:
-            return Response({"error": {"detail": "بنك الهدف غير موجود."}}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": {"detail": "بنك الهدف غير موجود."}}, status=status.HTTP_404_NOT_FOUND
+            )
 
         if source_bank.id == target_bank.id:
-            return Response({"error": {"detail": "لا يمكن النقل لنفس البنك."}}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": {"detail": "لا يمكن النقل لنفس البنك."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Perform the move
         moved_count = Question.objects.filter(bank=source_bank).update(bank=target_bank)
 
-        return Response({
-            "message": f"تم نقل {moved_count} سؤال بنجاح.",
-            "moved_count": moved_count,
-            "target_bank": target_bank.name
-        })
+        return Response(
+            {
+                "message": f"تم نقل {moved_count} سؤال بنجاح.",
+                "moved_count": moved_count,
+                "target_bank": target_bank.name,
+            }
+        )
+
 
 class QuestionViewSet(YearAwareViewSet):
     """Read is staff-only and, for TEACHER, further narrowed to "my own
@@ -165,12 +174,11 @@ class QuestionViewSet(YearAwareViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
     def get_permissions(self):
         if self.action in ("approve", "reject"):
             permission_classes = [
-                p()
-                for p in TenantScopedViewSet.permission_classes
-                + [CanApproveQuestions]
+                p() for p in TenantScopedViewSet.permission_classes + [CanApproveQuestions]
             ]
         elif self.action in ("import_template", "import_questions"):
             permission_classes = [
@@ -195,6 +203,7 @@ class QuestionViewSet(YearAwareViewSet):
                 + [IsStaffMember, IsStaffForWriteActions, IsCreatorOrAdmin]
             ]
         return permission_classes
+
     def get_queryset(self):
         qs = super().get_queryset().prefetch_related("options")
         user = self.request.user
@@ -206,13 +215,10 @@ class QuestionViewSet(YearAwareViewSet):
         )
 
     def _ensure_can_create_questions(self):
-        if (
-            self.request.user.role == User.Role.TEACHER
-            and not user_can(self.request.user, "teachers_can_create_questions")
+        if self.request.user.role == User.Role.TEACHER and not user_can(
+            self.request.user, "teachers_can_create_questions"
         ):
-            raise PermissionDenied(
-                "إنشاء الأسئلة غير مسموح لك حسب إعدادات المؤسسة."
-            )
+            raise PermissionDenied("إنشاء الأسئلة غير مسموح لك حسب إعدادات المؤسسة.")
 
     @action(detail=False, methods=["get"])
     def stats(self, request):
@@ -221,28 +227,16 @@ class QuestionViewSet(YearAwareViewSet):
         return Response(
             {
                 "total": qs.count(),
-                "pending": qs.filter(
-                    review_status=Question.ReviewStatus.PENDING
-                ).count(),
-                "approved": qs.filter(
-                    review_status=Question.ReviewStatus.APPROVED
-                ).count(),
-                "rejected": qs.filter(
-                    review_status=Question.ReviewStatus.REJECTED
-                ).count(),
+                "pending": qs.filter(review_status=Question.ReviewStatus.PENDING).count(),
+                "approved": qs.filter(review_status=Question.ReviewStatus.APPROVED).count(),
+                "rejected": qs.filter(review_status=Question.ReviewStatus.REJECTED).count(),
                 "by_type": {
-                    "MCQ": qs.filter(
-                        question_type=Question.QuestionType.MCQ
-                    ).count(),
-                    "TRUE_FALSE": qs.filter(
-                        question_type=Question.QuestionType.TRUE_FALSE
-                    ).count(),
+                    "MCQ": qs.filter(question_type=Question.QuestionType.MCQ).count(),
+                    "TRUE_FALSE": qs.filter(question_type=Question.QuestionType.TRUE_FALSE).count(),
                     "SHORT_ANSWER": qs.filter(
                         question_type=Question.QuestionType.SHORT_ANSWER
                     ).count(),
-                    "ESSAY": qs.filter(
-                        question_type=Question.QuestionType.ESSAY
-                    ).count(),
+                    "ESSAY": qs.filter(question_type=Question.QuestionType.ESSAY).count(),
                 },
             }
         )
@@ -259,13 +253,9 @@ class QuestionViewSet(YearAwareViewSet):
         buf = build_template_xlsx()
         response = HttpResponse(
             buf.getvalue(),
-            content_type=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
+            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
-        response["Content-Disposition"] = (
-            'attachment; filename="questions_template.xlsx"'
-        )
+        response["Content-Disposition"] = 'attachment; filename="questions_template.xlsx"'
         return response
 
     @action(
@@ -284,20 +274,19 @@ class QuestionViewSet(YearAwareViewSet):
         from apps.billing.services import require_feature
 
         self._ensure_can_create_questions()
-        if (
-            request.user.role == User.Role.ADMIN
-            and not user_can(request.user, "enable_bulk_import")
+        if request.user.role == User.Role.ADMIN and not user_can(
+            request.user, "enable_bulk_import"
         ):
-            raise PermissionDenied(
-                "الاستيراد الجماعي غير مسموح للمسؤول حسب إعدادات المؤسسة."
-            )
+            raise PermissionDenied("الاستيراد الجماعي غير مسموح للمسؤول حسب إعدادات المؤسسة.")
         require_feature(request.tenant, "bulk_import")
 
         from .import_service import (
             MAX_IMPORT_BYTES,
             REQUIRED_HEADERS,
-            import_questions as do_import,
             validate_rows,
+        )
+        from .import_service import (
+            import_questions as do_import,
         )
 
         upload = request.FILES.get("file")
@@ -390,9 +379,7 @@ class QuestionViewSet(YearAwareViewSet):
         ]
 
         if dry_run:
-            return Response(
-                {"dry_run": True, "summary": summary, "rows": rows_payload}
-            )
+            return Response({"dry_run": True, "summary": summary, "rows": rows_payload})
 
         if summary["errors"] > 0:
             return Response(
@@ -468,15 +455,11 @@ class QuestionViewSet(YearAwareViewSet):
             notify(
                 question.created_by,
                 notif_type=(
-                    "QUESTION_APPROVED"
-                    if new_status == "APPROVED"
-                    else "QUESTION_REJECTED"
+                    "QUESTION_APPROVED" if new_status == "APPROVED" else "QUESTION_REJECTED"
                 ),
                 title=f"تمت مراجعة سؤالك — {action_arabic}",
                 message=(
-                    question.review_note
-                    if question.review_note
-                    else f"سؤالك: {question.text[:80]}"
+                    question.review_note if question.review_note else f"سؤالك: {question.text[:80]}"
                 ),
                 link="/questions",
             )
@@ -489,6 +472,7 @@ class QuestionViewSet(YearAwareViewSet):
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         return self._review(request, pk, Question.ReviewStatus.REJECTED)
+
     @action(detail=True, methods=["post"])
     def duplicate(self, request, pk=None):
         """POST /questions/{id}/duplicate/ — clone into a new PENDING question.

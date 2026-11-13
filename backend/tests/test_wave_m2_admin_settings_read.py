@@ -7,8 +7,6 @@ STUDENT/TEACHER must be rejected for both.
 
 import pytest
 
-from apps.tenants.models import Tenant
-
 from .conftest import login_as
 from .factories import TeacherUserFactory, TenantFactory, UserFactory
 

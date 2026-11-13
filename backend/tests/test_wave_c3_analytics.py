@@ -69,15 +69,13 @@ def _setup_analytics_data():
         )
         q.options.create(tenant=tenant, text="A", is_correct=True, order=1)
         q.options.create(tenant=tenant, text="B", is_correct=False, order=2)
-        AssessmentQuestion.objects.create(
-            tenant=tenant, assessment=assessment, question=q, order=i
-        )
+        AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=i)
         questions.append(q)
 
     patterns = [
-        (True, True, True),    # A → 100%
-        (True, False, True),   # B → 66.7%
-        (False, False, False), # C → 0%
+        (True, True, True),  # A → 100%
+        (True, False, True),  # B → 66.7%
+        (False, False, False),  # C → 0%
     ]
 
     attempts = []
@@ -256,9 +254,7 @@ def test_analytics_with_no_attempts_returns_valid_empty(api_client):
     )
     q.options.create(tenant=tenant, text="A", is_correct=True, order=1)
     q.options.create(tenant=tenant, text="B", is_correct=False, order=2)
-    AssessmentQuestion.objects.create(
-        tenant=tenant, assessment=assessment, question=q, order=1
-    )
+    AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=1)
 
     client = login_as(api_client, owner)
     r = client.get(f"/api/v1/assessments/{assessment.id}/analytics/")
@@ -299,7 +295,8 @@ def test_in_progress_attempts_are_excluded(api_client):
     r = client.get(f"/api/v1/assessments/{assessment.id}/analytics/")
     # Still 3, not 4.
     assert r.data["summary"]["total_attempts"] == 3
-    
+
+
 def test_attempt_result_includes_student_name(api_client):
     """Wave C3.1 — AttemptResultSerializer must include student_name so
     the grading page and results table can show a human-readable name

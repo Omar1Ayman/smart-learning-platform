@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.assessments.models import Assessment, AssessmentQuestion, AssessmentTarget
+from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.exam_engine.models import ExamAttempt
 from apps.exam_engine.services import (
     finalize_attempt,
@@ -24,7 +24,6 @@ from .factories import (
     QuestionFactory,
     StudentUserFactory,
     TeacherUserFactory,
-    UserFactory,
 )
 
 pytestmark = pytest.mark.django_db
@@ -60,6 +59,7 @@ def _setup_essay_attempt():
 
 
 # ---------- services ----------
+
 
 def test_essay_attempt_starts_as_submitted_not_graded():
     attempt, _q, _s = _setup_essay_attempt()
@@ -105,9 +105,7 @@ def test_grade_essay_rejects_non_essay_question():
         approved=True,
         created_by=teacher,
     )
-    correct_option = mcq.options.create(
-        tenant=attempt.tenant, text="A", is_correct=True, order=1
-    )
+    correct_option = mcq.options.create(tenant=attempt.tenant, text="A", is_correct=True, order=1)
     mcq.options.create(tenant=attempt.tenant, text="B", is_correct=False, order=2)
     AssessmentQuestion.objects.create(
         tenant=attempt.tenant, assessment=attempt.assessment, question=mcq, order=2
@@ -145,6 +143,7 @@ def test_finalize_marks_graded_after_all_essays_graded():
 
 
 # ---------- endpoints ----------
+
 
 def test_staff_can_fetch_grading_payload(api_client):
     attempt, q, _s = _setup_essay_attempt()

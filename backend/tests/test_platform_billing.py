@@ -1,4 +1,5 @@
 import pytest
+
 from apps.accounts.models import User
 from apps.billing.models import Plan, Subscription, SubscriptionEvent
 from apps.tenants.models import Tenant
@@ -107,9 +108,7 @@ def test_platform_admin_can_assign_plan_and_overrides(api_client):
     assert response.data["limit_overrides"] == {"max_students": 1800}
     subscription = Subscription.objects.get(tenant=tenant)
     assert subscription.status == Subscription.Status.ACTIVE
-    assert subscription.events.filter(
-        event_type=SubscriptionEvent.EventType.CREATED
-    ).exists()
+    assert subscription.events.filter(event_type=SubscriptionEvent.EventType.CREATED).exists()
 
 
 def test_platform_admin_starts_trial_when_changing_active_subscription(api_client):
@@ -251,9 +250,7 @@ def test_platform_admin_cannot_delete_default_or_subscribed_plan(api_client):
     client = login_as(api_client, _platform_admin())
 
     free_response = client.delete(f"/api/v1/platform/billing/plans/{free.id}/")
-    subscribed_response = client.delete(
-        f"/api/v1/platform/billing/plans/{subscribed.id}/"
-    )
+    subscribed_response = client.delete(f"/api/v1/platform/billing/plans/{subscribed.id}/")
     inactive_free_response = client.patch(
         f"/api/v1/platform/billing/plans/{free.id}/",
         {"is_active": False},

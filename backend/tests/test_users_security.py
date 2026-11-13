@@ -13,6 +13,7 @@ pytestmark = pytest.mark.django_db
 
 # ---------- Read visibility ----------
 
+
 def test_student_can_only_see_themselves_in_users_list(api_client):
     tenant = TenantFactory()
     student_a = UserFactory(tenant=tenant, role="STUDENT")
@@ -52,15 +53,14 @@ def test_owner_can_see_all_users_in_tenant(api_client):
 
 # ---------- Update ----------
 
+
 def test_admin_can_update_teacher_first_name(api_client):
     tenant = TenantFactory()
     owner = UserFactory(tenant=tenant, role="OWNER")
     teacher = TeacherUserFactory(tenant=tenant)
 
     client = login_as(api_client, owner)
-    resp = client.patch(
-        f"/api/v1/users/{teacher.id}/", {"first_name": "Ahmed"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/users/{teacher.id}/", {"first_name": "Ahmed"}, format="json")
     assert resp.status_code == 200
     teacher.refresh_from_db()
     assert teacher.first_name == "Ahmed"
@@ -72,9 +72,7 @@ def test_admin_can_deactivate_teacher(api_client):
     teacher = TeacherUserFactory(tenant=tenant)
 
     client = login_as(api_client, owner)
-    resp = client.patch(
-        f"/api/v1/users/{teacher.id}/", {"is_active": False}, format="json"
-    )
+    resp = client.patch(f"/api/v1/users/{teacher.id}/", {"is_active": False}, format="json")
     assert resp.status_code == 200
     teacher.refresh_from_db()
     assert teacher.is_active is False
@@ -101,15 +99,14 @@ def test_admin_cannot_change_a_users_role(api_client):
     teacher = TeacherUserFactory(tenant=tenant)
 
     client = login_as(api_client, owner)
-    resp = client.patch(
-        f"/api/v1/users/{teacher.id}/", {"role": "ADMIN"}, format="json"
-    )
+    resp = client.patch(f"/api/v1/users/{teacher.id}/", {"role": "ADMIN"}, format="json")
     assert resp.status_code == 200
     teacher.refresh_from_db()
     assert teacher.role == "TEACHER"  # unchanged
 
 
 # ---------- OWNER / self protection ----------
+
 
 def test_admin_cannot_delete_the_owner(api_client):
     tenant = TenantFactory()

@@ -44,7 +44,9 @@ class Assessment(TenantScopedModel):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
     assessment_type = models.CharField(max_length=30, choices=AssessmentType.choices)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
 
     # Scheduling — spec #32. Optional at the model level (a DRAFT being
     # built step-by-step by the wizard won't have these yet).
@@ -54,7 +56,7 @@ class Assessment(TenantScopedModel):
     max_attempts = models.PositiveSmallIntegerField(default=1)
     passing_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
-        # ---- Entry window policy (Phase A of the exam-window feature) ----
+    # ---- Entry window policy (Phase A of the exam-window feature) ----
     # Both are OPTIONAL. If both null/zero, an exam whose only schedule
     # is starts_at/ends_at behaves exactly as before: the student can
     # start any time in that window, and their session ends at whichever
@@ -87,7 +89,11 @@ class Assessment(TenantScopedModel):
     question_count = models.PositiveIntegerField(null=True, blank=True)
 
     created_by = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="created_assessments"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_assessments",
     )
 
     class Meta:
@@ -110,7 +116,9 @@ class AssessmentQuestion(TenantScopedModel):
     """Only APPROVED questions may be linked — enforced in the serializer,
     re-checked at publish time in case approval was revoked after linking."""
 
-    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="assessment_questions")
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="assessment_questions"
+    )
     question = models.ForeignKey(
         "questions.Question", on_delete=models.RESTRICT, related_name="assessment_links"
     )
@@ -121,8 +129,12 @@ class AssessmentQuestion(TenantScopedModel):
         db_table = "assessments_question"
         ordering = ["assessment", "order"]
         constraints = [
-            models.UniqueConstraint(fields=["assessment", "question"], name="uniq_question_per_assessment"),
-            models.UniqueConstraint(fields=["assessment", "order"], name="uniq_order_per_assessment"),
+            models.UniqueConstraint(
+                fields=["assessment", "question"], name="uniq_question_per_assessment"
+            ),
+            models.UniqueConstraint(
+                fields=["assessment", "order"], name="uniq_order_per_assessment"
+            ),
         ]
 
     def __str__(self):
@@ -140,18 +152,34 @@ class AssessmentTarget(TenantScopedModel):
     assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="targets")
     target_type = models.CharField(max_length=10, choices=TargetType.choices)
     stage = models.ForeignKey(
-        "academics.Stage", null=True, blank=True, on_delete=models.CASCADE, related_name="assessment_targets"
+        "academics.Stage",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="assessment_targets",
     )
     grade = models.ForeignKey(
-        "academics.Grade", null=True, blank=True, on_delete=models.CASCADE, related_name="assessment_targets"
+        "academics.Grade",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="assessment_targets",
     )
     group = models.ForeignKey(
-        "academics.Group", null=True, blank=True, on_delete=models.CASCADE, related_name="assessment_targets"
+        "academics.Group",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="assessment_targets",
     )
     student = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.CASCADE, related_name="assessment_targets"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="assessment_targets",
     )
-        # Per-target window override — enables staggered groups (grade A
+    # Per-target window override — enables staggered groups (grade A
     # opens 11:00, grade B opens 12:00) and per-student extra time
     # (Ahmed gets until 12:15). If null, fall back to the parent
     # Assessment's starts_at / ends_at.

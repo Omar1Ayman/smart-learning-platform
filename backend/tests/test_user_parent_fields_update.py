@@ -3,8 +3,6 @@ fields on STUDENT rows, and reject them on staff rows."""
 
 import pytest
 
-from apps.accounts.models import User
-
 from .conftest import login_as
 from .factories import StudentUserFactory, TeacherUserFactory, UserFactory
 

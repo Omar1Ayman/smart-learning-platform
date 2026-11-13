@@ -396,9 +396,7 @@ class Command(BaseCommand):
     def _build_people(self, tenant):
         # Distribute 15 students: 8 in group A, 4 in group B, 3 in group C
         # (group C not stored as a field, only A and B — remaining in default group C)
-        group_c = Group.objects.get(
-            tenant=tenant, grade=self.grade_1sec, name="1ث - ج"
-        )
+        group_c = Group.objects.get(tenant=tenant, grade=self.grade_1sec, name="1ث - ج")
         assignments = (
             [(self.students[i], self.group_a) for i in range(0, 8)]
             + [(self.students[i], self.group_b) for i in range(8, 12)]
@@ -615,9 +613,7 @@ class Command(BaseCommand):
             tenant=tenant, question=self.q_bio_tf, text="خطأ", is_correct=False, order=2
         )
 
-        self.stdout.write(
-            self.style.SUCCESS("  ✓ Question banks: 2 banks, 7 questions total")
-        )
+        self.stdout.write(self.style.SUCCESS("  ✓ Question banks: 2 banks, 7 questions total"))
         return {"math": math_bank, "bio": bio_bank}
 
     def _build_assessments(self, tenant, banks, no_attempts=False):
@@ -763,9 +759,7 @@ class Command(BaseCommand):
             attempt.refresh_from_db()
             return attempt
 
-        def make_answer(
-            attempt, question, chosen=None, text="", is_correct=None, awarded=None
-        ):
+        def make_answer(attempt, question, chosen=None, text="", is_correct=None, awarded=None):
             AttemptAnswer.objects.create(
                 tenant=tenant,
                 attempt=attempt,
@@ -790,28 +784,39 @@ class Command(BaseCommand):
             graded_at=now - timedelta(days=3),
         )
         make_answer(
-            attempt1, self.q_math_mcq1,
+            attempt1,
+            self.q_math_mcq1,
             self.q_math_mcq1.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt1, self.q_math_mcq2,
+            attempt1,
+            self.q_math_mcq2,
             self.q_math_mcq2.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt1, self.q_math_tf,
+            attempt1,
+            self.q_math_tf,
             self.q_math_tf.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt1, self.q_math_short,
-            text="4", is_correct=True, awarded=Decimal("2.00"),
+            attempt1,
+            self.q_math_short,
+            text="4",
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt1, self.q_math_essay,
+            attempt1,
+            self.q_math_essay,
             text="ننقل -7 للطرف الآخر فتصبح 3x = 18 ثم نقسم على 3 فتصبح x = 6.",
-            is_correct=True, awarded=Decimal("0.00"),
+            is_correct=True,
+            awarded=Decimal("0.00"),
         )
 
         # ------------------------------------------------------------------
@@ -827,26 +832,36 @@ class Command(BaseCommand):
             submitted_at=now - timedelta(days=2) + timedelta(minutes=28),
         )
         make_answer(
-            attempt2, self.q_math_mcq1,
+            attempt2,
+            self.q_math_mcq1,
             self.q_math_mcq1.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt2, self.q_math_mcq2,
+            attempt2,
+            self.q_math_mcq2,
             self.q_math_mcq2.options.get(is_correct=False, order=1),
-            is_correct=False, awarded=Decimal("0.00"),
+            is_correct=False,
+            awarded=Decimal("0.00"),
         )
         make_answer(
-            attempt2, self.q_math_tf,
+            attempt2,
+            self.q_math_tf,
             self.q_math_tf.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt2, self.q_math_short,
-            text="4", is_correct=True, awarded=Decimal("2.00"),
+            attempt2,
+            self.q_math_short,
+            text="4",
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt2, self.q_math_essay,
+            attempt2,
+            self.q_math_essay,
             text="الحل هو x = 6 بطريقة النقل والقسمة.",
         )
 
@@ -884,35 +899,45 @@ class Command(BaseCommand):
             graded_at=now - timedelta(days=1),
         )
         make_answer(
-            attempt5, self.q_math_mcq1,
+            attempt5,
+            self.q_math_mcq1,
             self.q_math_mcq1.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt5, self.q_math_mcq2,
+            attempt5,
+            self.q_math_mcq2,
             self.q_math_mcq2.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt5, self.q_math_tf,
+            attempt5,
+            self.q_math_tf,
             self.q_math_tf.options.get(is_correct=True),
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt5, self.q_math_short,
-            text="4", is_correct=True, awarded=Decimal("2.00"),
+            attempt5,
+            self.q_math_short,
+            text="4",
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
         make_answer(
-            attempt5, self.q_math_essay,
+            attempt5,
+            self.q_math_essay,
             text="3x - 7 = 11 => 3x = 18 => x = 6.",
-            is_correct=True, awarded=Decimal("2.00"),
+            is_correct=True,
+            awarded=Decimal("2.00"),
         )
 
         self.stdout.write(
-            self.style.SUCCESS(
-                "  ✓ Attempts: 5 (2 graded, 1 submitted, 1 in progress, 1 expired)"
-            )
+            self.style.SUCCESS("  ✓ Attempts: 5 (2 graded, 1 submitted, 1 in progress, 1 expired)")
         )
+
     # ========================================================================
     # Summary
     # ========================================================================
@@ -934,7 +959,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.HTTP_INFO("👑 Platform admin (for /platform):"))
         if platform_admin:
             self.stdout.write(f"   Email:    {platform_admin.email}")
-            self.stdout.write(f"   Password: (as set when you created it)")
+            self.stdout.write("   Password: (as set when you created it)")
         else:
             self.stdout.write(self.style.WARNING("   (none — create with createsuperuser)"))
         self.stdout.write("")
@@ -945,7 +970,9 @@ class Command(BaseCommand):
         self.stdout.write("   Teacher:  teacher1@nile.school / TeacherPass123!  (Math)")
         self.stdout.write("   Teacher:  teacher2@nile.school / TeacherPass123!  (Biology)")
         self.stdout.write("   Teacher:  teacher3@nile.school / TeacherPass123!  (Arabic)")
-        self.stdout.write("   Student:  student1@nile.school / StudentPass123!  (has graded attempt)")
+        self.stdout.write(
+            "   Student:  student1@nile.school / StudentPass123!  (has graded attempt)"
+        )
         self.stdout.write("   Student:  student2@nile.school / StudentPass123!  (pending grading)")
         self.stdout.write("   Student:  student3@nile.school / StudentPass123!  (in progress)")
         self.stdout.write("   ...students 4-15 share StudentPass123!")

@@ -21,14 +21,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         missing = User.objects.filter(role=User.Role.STUDENT).filter(
             student_code__isnull=True
-        ) | User.objects.filter(
-            role=User.Role.STUDENT, student_code=""
-        )
+        ) | User.objects.filter(role=User.Role.STUDENT, student_code="")
         total = missing.count()
         if total == 0:
-            self.stdout.write(
-                self.style.SUCCESS("✅ All students already have a code.")
-            )
+            self.stdout.write(self.style.SUCCESS("✅ All students already have a code."))
             return
 
         self.stdout.write(f"Backfilling {total} student(s)...")
@@ -57,6 +53,4 @@ class Command(BaseCommand):
                     )
                 )
 
-        self.stdout.write(
-            self.style.SUCCESS(f"✅ Backfilled {fixed} of {total} student(s).")
-        )
+        self.stdout.write(self.style.SUCCESS(f"✅ Backfilled {fixed} of {total} student(s)."))

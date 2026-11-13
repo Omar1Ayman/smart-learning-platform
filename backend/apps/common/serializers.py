@@ -9,6 +9,7 @@ from rest_framework import serializers
 
 from .warnings import WarningSerializerMixin
 
+
 class TenantScopedRelationsMixin:
     """Mix into any serializers.ModelSerializer. `tenant_scoped_fields`
     maps a field name to either:
@@ -36,8 +37,6 @@ class TenantScopedRelationsMixin:
             else:
                 queryset = resolver.objects.for_tenant(tenant) if is_model else resolver(tenant)
             self.fields[field_name].queryset = queryset
-
-
 
 
 class TenantScopedModelSerializer(

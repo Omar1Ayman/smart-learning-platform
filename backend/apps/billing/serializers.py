@@ -44,6 +44,7 @@ class UsageItemSerializer(serializers.Serializer):
 
 class FeatureStatusSerializer(serializers.Serializer):
     """Simple {key: bool} map for the frontend."""
+
     features = serializers.DictField(child=serializers.BooleanField())
 
 

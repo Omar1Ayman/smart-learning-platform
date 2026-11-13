@@ -54,8 +54,8 @@ def test_owner_can_create_a_teacher_account_and_invite_user(api_client, mailoutb
 
 
 def test_failed_invitation_delivery_does_not_create_user(api_client, monkeypatch):
-    from apps.accounts.invitations import InvitationDeliveryError
     from apps.accounts import serializers
+    from apps.accounts.invitations import InvitationDeliveryError
 
     tenant = TenantFactory()
     owner = UserFactory(tenant=tenant, role="OWNER")
@@ -116,10 +116,14 @@ def test_admin_cannot_set_a_users_password(api_client):
     tenant = TenantFactory()
     owner = UserFactory(tenant=tenant, role="OWNER")
     client = login_as(api_client, owner)
-    r = client.post("/api/v1/users/", {
-        "email": "weak@test.com",
-        "password": "StrongPass123!",
-        "role": "TEACHER",
-    }, format="json")
+    r = client.post(
+        "/api/v1/users/",
+        {
+            "email": "weak@test.com",
+            "password": "StrongPass123!",
+            "role": "TEACHER",
+        },
+        format="json",
+    )
     assert r.status_code == 400
     assert not User.objects.filter(email="weak@test.com").exists()

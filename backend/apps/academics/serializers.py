@@ -40,9 +40,7 @@ class AcademicYearSerializer(serializers.ModelSerializer):
         silent state corruption.
     """
 
-    status_display = serializers.CharField(
-        source="get_status_display", read_only=True
-    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = AcademicYear
@@ -170,18 +168,31 @@ class GroupSerializer(TenantScopedModelSerializer):
 
     class Meta:
         model = Group
-        fields = ["id", "grade", "academic_year", "name", "capacity","students_count", "teachers_count", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "grade",
+            "academic_year",
+            "name",
+            "capacity",
+            "students_count",
+            "teachers_count",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ["id", "students_count", "teachers_count", "created_at", "updated_at"]
 
     def get_students_count(self, obj):
         # حساب عدد الطلاب النشطين في هذه المجموعة
         from apps.people.models import Enrollment
+
         return Enrollment.objects.filter(group=obj, status="ACTIVE").count()
 
     def get_teachers_count(self, obj):
         # حساب عدد المعلمين المسندين لهذه المجموعة
         from apps.people.models import TeacherAssignment
+
         return TeacherAssignment.objects.filter(groups=obj).count()
+
     def validate(self, attrs):
         # FIX (bug 12): changing academic_year on a group that already has
         # enrollments would leave every Enrollment.academic_year stale
@@ -206,14 +217,18 @@ class GroupSerializer(TenantScopedModelSerializer):
                     )
         return attrs
 
+
 class SubjectSerializer(serializers.ModelSerializer):
     courses_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Subject
         fields = ["id", "name", "code", "courses_count", "created_at", "updated_at"]
         read_only_fields = ["id", "courses_count", "created_at", "updated_at"]
+
     def get_courses_count(self, obj):
         return obj.courses.count()
+
 
 class CourseSerializer(TenantScopedModelSerializer):
     """Phase 1.4 — academic_year is required, term is optional.
@@ -252,18 +267,10 @@ class CourseSerializer(TenantScopedModelSerializer):
 
     subject_name = serializers.CharField(source="subject.name", read_only=True)
     grade_name = serializers.CharField(source="grade.name", read_only=True)
-    academic_year_name = serializers.CharField(
-        source="academic_year.name", read_only=True
-    )
-    term_name = serializers.CharField(
-        source="term.name", read_only=True, allow_null=True
-    )
-    stage = serializers.CharField(
-        source="grade.stage_id", read_only=True
-    )
-    stage_name = serializers.CharField(
-        source="grade.stage.name", read_only=True
-    )
+    academic_year_name = serializers.CharField(source="academic_year.name", read_only=True)
+    term_name = serializers.CharField(source="term.name", read_only=True, allow_null=True)
+    stage = serializers.CharField(source="grade.stage_id", read_only=True)
+    stage_name = serializers.CharField(source="grade.stage.name", read_only=True)
 
     class Meta:
         model = Course
@@ -273,8 +280,8 @@ class CourseSerializer(TenantScopedModelSerializer):
             "subject_name",
             "grade",
             "grade_name",
-            "stage",           
-            "stage_name",      
+            "stage",
+            "stage_name",
             "academic_year",
             "academic_year_name",
             "term",
@@ -291,7 +298,7 @@ class CourseSerializer(TenantScopedModelSerializer):
             "id",
             "subject_name",
             "grade_name",
-             "stage",
+            "stage",
             "stage_name",
             "academic_year_name",
             "term_name",
@@ -308,16 +315,12 @@ class CourseSerializer(TenantScopedModelSerializer):
             self.fields["term"].allow_null = True
 
     def validate(self, attrs):
-        academic_year = attrs.get("academic_year") or getattr(
-            self.instance, "academic_year", None
-        )
+        academic_year = attrs.get("academic_year") or getattr(self.instance, "academic_year", None)
         term = attrs.get("term") or getattr(self.instance, "term", None)
 
         # Defensive: field has required=True, but keep for clarity.
         if academic_year is None:
-            raise serializers.ValidationError(
-                {"academic_year": "السنة الدراسية مطلوبة."}
-            )
+            raise serializers.ValidationError({"academic_year": "السنة الدراسية مطلوبة."})
 
         # term (if provided) must belong to the same year.
         if term is not None and term.academic_year_id != academic_year.id:
@@ -331,9 +334,7 @@ class CourseSerializer(TenantScopedModelSerializer):
         subject = attrs.get("subject") or getattr(self.instance, "subject", None)
 
         if name and grade and subject:
-            qs = Course.objects.for_tenant(
-                self.context["request"].tenant
-            ).filter(
+            qs = Course.objects.for_tenant(self.context["request"].tenant).filter(
                 grade=grade,
                 subject=subject,
                 name=name,
@@ -362,9 +363,12 @@ class CourseSerializer(TenantScopedModelSerializer):
                 raise serializers.ValidationError({"name": msg})
 
         # Wave 33 — WARNING: grade has no groups yet.
-        if grade and not Group.objects.for_tenant(
-            self.context["request"].tenant
-        ).filter(grade=grade).exists():
+        if (
+            grade
+            and not Group.objects.for_tenant(self.context["request"].tenant)
+            .filter(grade=grade)
+            .exists()
+        ):
             self.add_warning(
                 "grade",
                 f"الصف '{grade.name}' ليس فيه مجموعات بعد — "
@@ -375,11 +379,15 @@ class CourseSerializer(TenantScopedModelSerializer):
 
     def get_lessons_count(self, obj):
         from .models import Lesson
+
         return Lesson.objects.filter(chapter__course=obj).count()
 
     def get_teachers_count(self, obj):
         from apps.people.models import TeacherAssignment
+
         return TeacherAssignment.objects.filter(course=obj).count()
+
+
 class ChapterSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"course": Course}
 
@@ -396,9 +404,8 @@ class LessonSerializer(TenantScopedModelSerializer):
         model = Lesson
         fields = ["id", "chapter", "name", "order", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
-        
-        
-        
+
+
 # ============================================================================
 # Phase 1.10-1.12 — Rollover Wizard serializers
 # ============================================================================
@@ -426,9 +433,7 @@ class PromotionItemInputSerializer(serializers.Serializer):
     """One row in the promote-students batch."""
 
     enrollment = serializers.UUIDField()
-    action = serializers.ChoiceField(
-        choices=["PROMOTE", "REPEAT", "GRADUATE", "TRANSFER"]
-    )
+    action = serializers.ChoiceField(choices=["PROMOTE", "REPEAT", "GRADUATE", "TRANSFER"])
     target_group = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs):
@@ -436,13 +441,9 @@ class PromotionItemInputSerializer(serializers.Serializer):
         target_group = attrs.get("target_group")
 
         if action in ("PROMOTE", "REPEAT") and not target_group:
-            raise serializers.ValidationError(
-                {"target_group": f"مطلوب للإجراء {action}."}
-            )
+            raise serializers.ValidationError({"target_group": f"مطلوب للإجراء {action}."})
         if action in ("GRADUATE", "TRANSFER") and target_group:
-            raise serializers.ValidationError(
-                {"target_group": f"لا يُحدَّد للإجراء {action}."}
-            )
+            raise serializers.ValidationError({"target_group": f"لا يُحدَّد للإجراء {action}."})
         return attrs
 
 
@@ -458,8 +459,6 @@ class PromoteStudentsSerializer(serializers.Serializer):
         seen = set()
         for item in items:
             if item["enrollment"] in seen:
-                raise serializers.ValidationError(
-                    "لا يمكن تكرار نفس الـ enrollment في دفعة واحدة."
-                )
+                raise serializers.ValidationError("لا يمكن تكرار نفس الـ enrollment في دفعة واحدة.")
             seen.add(item["enrollment"])
         return items

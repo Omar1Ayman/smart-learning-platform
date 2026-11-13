@@ -27,6 +27,4 @@ def unique_copy_name(base_name, exists_fn, max_tries=100):
         candidate = f"{base_name} (نسخة {i})"
         if not exists_fn(candidate):
             return candidate
-    raise ValidationError(
-        f"تعذّر توليد اسم فريد للنسخة — حاول باسم أقصر."
-    )
+    raise ValidationError("تعذّر توليد اسم فريد للنسخة — حاول باسم أقصر.")

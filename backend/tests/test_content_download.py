@@ -59,7 +59,9 @@ def test_eligible_student_can_download(api_client):
     content_id = _create_content(client, group=str(group.id))
 
     student = UserFactory(tenant=tenant, role="STUDENT")
-    EnrollmentFactory(tenant=tenant, student=student, group=group, academic_year=group.academic_year)
+    EnrollmentFactory(
+        tenant=tenant, student=student, group=group, academic_year=group.academic_year
+    )
 
     student_client = login_as(APIClient(), student)
     resp = student_client.get(f"/api/v1/content/{content_id}/download/")
@@ -83,7 +85,11 @@ def test_external_link_download_returns_the_url_not_a_file(api_client):
     client = login_as(api_client, owner)
     resp = client.post(
         "/api/v1/content/",
-        {"title": "Link", "content_type": "EXTERNAL_LINK", "external_url": "https://example.com/video"},
+        {
+            "title": "Link",
+            "content_type": "EXTERNAL_LINK",
+            "external_url": "https://example.com/video",
+        },
         format="json",
     )
     content_id = resp.data["id"]

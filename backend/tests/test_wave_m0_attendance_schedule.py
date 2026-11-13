@@ -72,6 +72,8 @@ def _make_schedule(
         teacher=teacher,
         is_active=True,
     )
+
+
 # ---------------------------------------------------------------------------
 # F-06 — GroupSchedule CRUD
 # ---------------------------------------------------------------------------
@@ -214,9 +216,7 @@ def test_today_scoped_to_teacher_assignments(api_client):
 
     # Assign teacher_a to group_a's grade
     course_a = CourseFactory(tenant=tenant, grade=group_a.grade)
-    ta = TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher_a, course=course_a
-    )
+    ta = TeacherAssignment.objects.create(tenant=tenant, teacher=teacher_a, course=course_a)
     ta.groups.set([group_a])
 
     _make_schedule(group_a, teacher=teacher_a)
@@ -358,10 +358,18 @@ def _setup_session_with_absent_student():
         student=student,
         status=AttendanceRecord.Status.ABSENT,
     )
-    return {"group": group, "owner": owner, "teacher": teacher, "session": session, "student": student}
+    return {
+        "group": group,
+        "owner": owner,
+        "teacher": teacher,
+        "session": session,
+        "student": student,
+    }
 
 
-def test_notify_parents_endpoint_dispatches(api_client, django_capture_on_commit_callbacks, mailoutbox):
+def test_notify_parents_endpoint_dispatches(
+    api_client, django_capture_on_commit_callbacks, mailoutbox
+):
     ctx = _setup_session_with_absent_student()
 
     client = login_as(api_client, ctx["owner"])
@@ -482,9 +490,7 @@ def test_notify_parents_scheduled_session_rejected(api_client):
     assert r.status_code == 400
 
 
-def test_notify_parents_creates_in_app_notification(
-    api_client, django_capture_on_commit_callbacks
-):
+def test_notify_parents_creates_in_app_notification(api_client, django_capture_on_commit_callbacks):
     """Parent linkage via ParentChild also gets an in-app notification."""
     from apps.accounts.models import ParentChild
 
@@ -505,6 +511,4 @@ def test_notify_parents_creates_in_app_notification(
             format="json",
         )
 
-    assert Notification.objects.filter(
-        user=parent_user, type="ABSENCE_ALERT"
-    ).exists()
+    assert Notification.objects.filter(user=parent_user, type="ABSENCE_ALERT").exists()

@@ -55,9 +55,7 @@ def visible_content_for_student(tenant, student):
         .distinct()
     )
     chapter_ids = list(
-        Chapter.objects.filter(tenant=tenant, course_id__in=course_ids).values_list(
-            "id", flat=True
-        )
+        Chapter.objects.filter(tenant=tenant, course_id__in=course_ids).values_list("id", flat=True)
     )
     lesson_ids = list(
         Lesson.objects.filter(tenant=tenant, chapter_id__in=chapter_ids).values_list(

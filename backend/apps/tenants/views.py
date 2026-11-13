@@ -1,20 +1,18 @@
 from django.conf import settings
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import SAFE_METHODS, AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework.permissions import SAFE_METHODS
-from .serializers import TenantSignupSerializer
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
 from apps.audit.services import log_action
 from apps.common.mixins import TenantContextMixin
 from apps.common.permissions import HasRole, IsTenantMember
 from apps.tenants.permissions import CanManageTenantSettings
 
+from .serializers import TenantSignupSerializer
 from .settings_serializers import TenantBrandingSerializer, TenantSettingsSerializer
+
 
 class TenantSignupView(generics.CreateAPIView):
     """POST /api/v1/auth/signup/ — public. See TenantSignupSerializer."""
@@ -41,6 +39,7 @@ class TenantSignupView(generics.CreateAPIView):
             path=settings.REFRESH_TOKEN_COOKIE_PATH,
         )
         return response
+
 
 class TenantSettingsView(TenantContextMixin, APIView):
     """GET/PATCH /tenant/settings/ — policy configuration.
@@ -88,12 +87,14 @@ class TenantBrandingView(TenantContextMixin, APIView):
 
     def get(self, request):
         t = request.tenant
-        return Response({
-            "name": t.name,
-            "primary_color": t.primary_color,
-            "logo_url": t.logo_url,
-            "contact_email": t.contact_email,
-        })
+        return Response(
+            {
+                "name": t.name,
+                "primary_color": t.primary_color,
+                "logo_url": t.logo_url,
+                "contact_email": t.contact_email,
+            }
+        )
 
     def patch(self, request):
         serializer = TenantBrandingSerializer(data=request.data, partial=True)
@@ -108,9 +109,11 @@ class TenantBrandingView(TenantContextMixin, APIView):
             action="tenant.branding_updated",
             metadata={"fields": list(serializer.validated_data.keys())},
         )
-        return Response({
-            "name": t.name,
-            "primary_color": t.primary_color,
-            "logo_url": t.logo_url,
-            "contact_email": t.contact_email,
-        })
+        return Response(
+            {
+                "name": t.name,
+                "primary_color": t.primary_color,
+                "logo_url": t.logo_url,
+                "contact_email": t.contact_email,
+            }
+        )

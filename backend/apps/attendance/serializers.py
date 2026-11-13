@@ -18,18 +18,12 @@ class AttendanceSessionSerializer(TenantScopedModelSerializer):
         "group": Group,
         "course": Course,
         "lesson": Lesson,
-        "teacher": lambda tenant: User.objects.for_tenant(tenant).filter(
-            role=User.Role.TEACHER
-        ),
+        "teacher": lambda tenant: User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER),
     }
 
     group_name = serializers.CharField(source="group.name", read_only=True)
-    course_name = serializers.CharField(
-        source="course.name", read_only=True, allow_null=True
-    )
-    lesson_name = serializers.CharField(
-        source="lesson.name", read_only=True, allow_null=True
-    )
+    course_name = serializers.CharField(source="course.name", read_only=True, allow_null=True)
+    lesson_name = serializers.CharField(source="lesson.name", read_only=True, allow_null=True)
     teacher_email = serializers.EmailField(source="teacher.email", read_only=True)
     total_students = serializers.SerializerMethodField()
     present_count = serializers.SerializerMethodField()
@@ -115,9 +109,7 @@ class AttendanceSessionSerializer(TenantScopedModelSerializer):
         course = attrs.get("course") or getattr(self.instance, "course", None)
         lesson = attrs.get("lesson") or getattr(self.instance, "lesson", None)
         if lesson and course and lesson.chapter.course_id != course.id:
-            raise serializers.ValidationError(
-                {"lesson": "الدرس لا ينتمي للمادة الدراسية المحددة."}
-            )
+            raise serializers.ValidationError({"lesson": "الدرس لا ينتمي للمادة الدراسية المحددة."})
         return attrs
 
     def create(self, validated_data):
@@ -164,9 +156,7 @@ class MarkQRInputSerializer(serializers.Serializer):
 
 class ManualMarkInputSerializer(serializers.Serializer):
     student = serializers.UUIDField()
-    status = serializers.ChoiceField(
-        choices=AttendanceRecord.Status.choices
-    )
+    status = serializers.ChoiceField(choices=AttendanceRecord.Status.choices)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -177,7 +167,8 @@ class BulkMarkInputSerializer(serializers.Serializer):
         child=serializers.UUIDField(), allow_empty=False, max_length=500
     )
     status = serializers.ChoiceField(choices=AttendanceRecord.Status.choices)
-    
+
+
 # ============================================================================
 # Wave M0 (Milestone 0, Batch 3) — GroupSchedule + Today's sessions
 # ============================================================================
@@ -197,9 +188,7 @@ class GroupScheduleSerializer(TenantScopedModelSerializer):
 
     tenant_scoped_fields = {
         "group": Group,
-        "teacher": lambda tenant: User.objects.for_tenant(tenant).filter(
-            role=User.Role.TEACHER
-        ),
+        "teacher": lambda tenant: User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER),
     }
 
     group_name = serializers.CharField(source="group.name", read_only=True)
@@ -223,7 +212,14 @@ class GroupScheduleSerializer(TenantScopedModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "group_name", "teacher_email", "weekday_label"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "group_name",
+            "teacher_email",
+            "weekday_label",
+        ]
 
     def validate(self, attrs):
         """F-06 — validate: end_time > start_time (mirrors the DB CHECK),
@@ -244,7 +240,9 @@ class GroupScheduleSerializer(TenantScopedModelSerializer):
             attrs["weekday"] if "weekday" in attrs else getattr(self.instance, "weekday", None)
         )
         is_active = (
-            attrs["is_active"] if "is_active" in attrs else getattr(self.instance, "is_active", True)
+            attrs["is_active"]
+            if "is_active" in attrs
+            else getattr(self.instance, "is_active", True)
         )
         if group and weekday is not None and start and is_active:
             qs = GroupSchedule.objects.for_tenant(self.context["request"].tenant).filter(
@@ -256,8 +254,7 @@ class GroupScheduleSerializer(TenantScopedModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "start_time": (
-                            "توجد حصة مفعّلة بالفعل لهذه المجموعة في نفس اليوم "
-                            "بنفس وقت البدء."
+                            "توجد حصة مفعّلة بالفعل لهذه المجموعة في نفس اليوم بنفس وقت البدء."
                         )
                     }
                 )
@@ -290,6 +287,7 @@ class TodaySessionSerializer(serializers.Serializer):
     starts_in_minutes = serializers.IntegerField()
     ready_to_start = serializers.BooleanField()
     state = serializers.CharField()
+
 
 class NotifyParentsInputSerializer(serializers.Serializer):
     """Input for POST /attendance/sessions/<id>/notify-parents/.

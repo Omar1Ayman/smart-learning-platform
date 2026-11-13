@@ -16,7 +16,6 @@ Wave Zero fixes reflected here:
   OWNER/ADMIN-only, breaking /settings/profile)
 """
 
-
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -25,6 +24,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework import generics, status, viewsets
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -32,12 +32,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework.pagination import PageNumberPagination
 
 from apps.audit.services import log_action
 from apps.common.mixins import TenantContextMixin
 from apps.common.permissions import (
-    HasRole,
     IsAdminForWriteActions,
     IsSameTenantObject,
     IsTenantMember,
@@ -81,6 +79,7 @@ from .two_factor import (
     verify_totp_code,
     verify_twofa_token,
 )
+
 
 def _set_refresh_cookie(response, refresh_token: str):
     response.set_cookie(
@@ -221,6 +220,8 @@ class CookieTokenRefreshView(TokenRefreshView):
             rotated = rotate_session(user, old_jti, new_refresh, request)
             response.data["session_id"] = str(rotated.id)
         return response
+
+
 class LogoutView(APIView):
     """POST /api/v1/auth/logout/ — blacklists the refresh token and clears
     the cookie, so a copy of it (if one ever leaked) is dead immediately."""
@@ -280,9 +281,7 @@ class PasswordResetRequestView(APIView):
         if user is not None:
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            reset_url = (
-                f"{settings.FRONTEND_URL}/reset-password?uidb64={uidb64}&token={token}"
-            )
+            reset_url = f"{settings.FRONTEND_URL}/reset-password?uidb64={uidb64}&token={token}"
             send_mail(
                 subject="إعادة تعيين كلمة المرور — منصة التعلم الذكية",
                 message=(
@@ -296,9 +295,7 @@ class PasswordResetRequestView(APIView):
                 fail_silently=True,
             )
 
-        return Response(
-            {"detail": "إن كان البريد مسجلًا، ستصلك رسالة بها رابط إعادة التعيين."}
-        )
+        return Response({"detail": "إن كان البريد مسجلًا، ستصلك رسالة بها رابط إعادة التعيين."})
 
 
 class PasswordResetConfirmView(APIView):
@@ -314,14 +311,15 @@ class PasswordResetConfirmView(APIView):
         user = serializer.validated_data["user"]
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
-        return Response(
-            {"detail": "تم تحديث كلمة المرور. يمكنك الآن تسجيل الدخول."}
-        )
+        return Response({"detail": "تم تحديث كلمة المرور. يمكنك الآن تسجيل الدخول."})
+
 
 class UsersPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 100
+
+
 class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
     """/api/v1/users/ — Owner/Admin manage Teacher/Student/Admin accounts
     for their own tenant. Read access is *also* role-scoped: a STUDENT or
@@ -334,6 +332,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
     this to split Staff vs Students into tabs without three separate API
     calls.
     """
+
     filterset_fields = ["role", "is_active"]
     search_fields = ["email", "first_name", "last_name", "student_code"]
     ordering_fields = [
@@ -357,6 +356,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
     queryset = User.objects.none()
     serializer_class = UserSerializer
     filterset_fields = ["role", "is_active"]
+
     def get_queryset(self):
         # 1. تحسين الأداء للتسجيلات فقط (بدون teacher_assignments لأن اسمها مختلف)
         qs = User.objects.for_tenant(self.request.tenant).prefetch_related(
@@ -365,18 +365,13 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
 
         # أعمدة ترتيب افتراضية لأسماء الصف/المجموعة (عمود واحد لكل طالب نشط)
         from django.db.models import OuterRef, Subquery
+
         from apps.people.models import Enrollment
 
-        active_enrollment = Enrollment.objects.filter(
-            student=OuterRef("pk"), status="ACTIVE"
-        )
+        active_enrollment = Enrollment.objects.filter(student=OuterRef("pk"), status="ACTIVE")
         qs = qs.annotate(
-            _grade_name=Subquery(
-                active_enrollment.values("group__grade__name")[:1]
-            ),
-            _group_name=Subquery(
-                active_enrollment.values("group__name")[:1]
-            ),
+            _grade_name=Subquery(active_enrollment.values("group__grade__name")[:1]),
+            _group_name=Subquery(active_enrollment.values("group__name")[:1]),
         )
 
         # 2. فلتر الأدوار (role__in)
@@ -390,6 +385,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
         course_id = self.request.query_params.get("course")
         if course_id:
             from apps.people.models import TeacherAssignment
+
             teacher_ids = (
                 TeacherAssignment.objects.for_tenant(self.request.tenant)
                 .filter(course_id=course_id)
@@ -399,9 +395,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
 
         # 4. فلتر الصف والمجموعة (للطلاب فقط)
         role_filter = self.request.query_params.get("role")
-        is_student_query = role_filter == "STUDENT" or (
-            role_in and "STUDENT" in role_in
-        )
+        is_student_query = role_filter == "STUDENT" or (role_in and "STUDENT" in role_in)
 
         if is_student_query:
             grade_id = self.request.query_params.get("grade")
@@ -423,6 +417,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
             return qs.filter(id=self.request.user.id)
 
         return qs.distinct()
+
     def get_serializer_class(self):
         if self.action == "create":
             return UserCreateSerializer
@@ -484,6 +479,7 @@ class UserViewSet(TenantContextMixin, viewsets.ModelViewSet):
             metadata={"email": instance.email, "role": instance.role},
         )
         super().perform_destroy(instance)
+
 
 class TwoFactorSetupView(APIView):
     """POST /auth/2fa/setup/ — generate secret + QR + recovery codes.
@@ -564,9 +560,7 @@ class TwoFactorEnableView(APIView):
         serializer = TwoFactorCodeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        if not verify_totp_code(
-            user.two_factor_secret, serializer.validated_data["code"]
-        ):
+        if not verify_totp_code(user.two_factor_secret, serializer.validated_data["code"]):
             return Response(
                 {
                     "error": {
@@ -579,9 +573,7 @@ class TwoFactorEnableView(APIView):
 
         user.two_factor_enabled = True
         user.save(update_fields=["two_factor_enabled"])
-        log_action(
-            actor=user, tenant=user.tenant, action="user.twofa_enabled", obj=user
-        )
+        log_action(actor=user, tenant=user.tenant, action="user.twofa_enabled", obj=user)
 
         return Response({"detail": "تم تفعيل المصادقة الثنائية بنجاح."})
 
@@ -620,9 +612,7 @@ class TwoFactorDisableView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not verify_totp_code(
-            user.two_factor_secret, serializer.validated_data["code"]
-        ):
+        if not verify_totp_code(user.two_factor_secret, serializer.validated_data["code"]):
             return Response(
                 {"error": {"status": 400, "detail": "رمز غير صالح."}},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -638,9 +628,7 @@ class TwoFactorDisableView(APIView):
                 "two_factor_recovery_codes",
             ]
         )
-        log_action(
-            actor=user, tenant=user.tenant, action="user.twofa_disabled", obj=user
-        )
+        log_action(actor=user, tenant=user.tenant, action="user.twofa_disabled", obj=user)
 
         return Response({"detail": "تم إلغاء المصادقة الثنائية."})
 
@@ -671,9 +659,7 @@ class TwoFactorLoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        user = User.objects.filter(
-            id=user_id, is_active=True, two_factor_enabled=True
-        ).first()
+        user = User.objects.filter(id=user_id, is_active=True, two_factor_enabled=True).first()
         if user is None:
             return Response(
                 {"error": {"status": 401, "detail": "حساب غير صالح."}},
@@ -726,9 +712,7 @@ class TwoFactorLoginView(APIView):
         response = Response(data, status=status.HTTP_200_OK)
         _set_refresh_cookie(response, refresh_str)
 
-        log_action(
-            actor=user, tenant=user.tenant, action="user.logged_in_2fa", obj=user
-        )
+        log_action(actor=user, tenant=user.tenant, action="user.logged_in_2fa", obj=user)
         return response
 
 
@@ -738,9 +722,7 @@ class UserSessionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        sessions = UserSession.objects.filter(user=request.user).order_by(
-            "-last_seen_at"
-        )
+        sessions = UserSession.objects.filter(user=request.user).order_by("-last_seen_at")
         current_session_id = request.query_params.get("current")
         serializer = UserSessionSerializer(
             sessions, many=True, context={"current_session_id": current_session_id}
@@ -759,9 +741,7 @@ class RevokeSessionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, session_id):
-        session = UserSession.objects.filter(
-            id=session_id, user=request.user
-        ).first()
+        session = UserSession.objects.filter(id=session_id, user=request.user).first()
         if session is None:
             return Response(
                 {"error": {"status": 404, "detail": "الجلسة غير موجودة."}},
@@ -806,9 +786,7 @@ class RevokeAllSessionsView(APIView):
                 # Cookie invalid/expired — no current session to protect.
                 keep_jti = None
 
-        count = revoke_all_sessions(
-            request.user, except_jti=keep_jti, reason="user_revoked_all"
-        )
+        count = revoke_all_sessions(request.user, except_jti=keep_jti, reason="user_revoked_all")
         log_action(
             actor=request.user,
             tenant=getattr(request.user, "tenant", None),
@@ -826,9 +804,7 @@ class ChangePasswordView(APIView):
     throttle_scope = "password_change"
 
     def post(self, request):
-        serializer = ChangePasswordSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
@@ -845,9 +821,7 @@ class ChangePasswordView(APIView):
             except TokenError:
                 pass
 
-        count = revoke_all_sessions(
-            request.user, except_jti=keep_jti, reason="password_changed"
-        )
+        count = revoke_all_sessions(request.user, except_jti=keep_jti, reason="password_changed")
 
         log_action(
             actor=request.user,
@@ -913,9 +887,7 @@ def _teacher_can_view_student(teacher, student, tenant) -> bool:
     return (
         Enrollment.objects.for_tenant(tenant)
         .filter(student=student, status=Enrollment.Status.ACTIVE)
-        .filter(
-            Q(group_id__in=narrowed_group_ids) | Q(group__grade_id__in=whole_grade_ids)
-        )
+        .filter(Q(group_id__in=narrowed_group_ids) | Q(group__grade_id__in=whole_grade_ids))
         .exists()
     )
 

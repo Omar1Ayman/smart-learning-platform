@@ -10,7 +10,9 @@ H-2: `visible_assessments_for_student` and `is_student_targeted` had
 the same bug and disagreed with `get_targeted_students` (which
 correctly filtered status=ACTIVE). All three now agree.
 """
+
 import pytest
+
 from apps.assessments.models import AssessmentTarget
 from apps.assessments.services import (
     is_student_targeted,

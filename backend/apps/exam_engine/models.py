@@ -102,7 +102,9 @@ class ExamAttempt(TenantScopedModel):
         ]
         indexes = [
             models.Index(fields=["tenant", "student", "status"], name="attempt_student_status_idx"),
-            models.Index(fields=["tenant", "assessment", "status"], name="attempt_assessment_status_idx"),
+            models.Index(
+                fields=["tenant", "assessment", "status"], name="attempt_assessment_status_idx"
+            ),
         ]
 
     def __str__(self):
@@ -179,8 +181,8 @@ class AttemptAnswer(TenantScopedModel):
 
     def __str__(self):
         return f"{self.attempt} — Q{self.question_id}"
-    
-    
+
+
 class AttemptEvent(TenantScopedModel):
     """Suspicious activity during an exam attempt.
 

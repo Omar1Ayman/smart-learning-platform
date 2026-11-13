@@ -28,21 +28,35 @@ class QuestionBank(TenantScopedModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
     subject = models.ForeignKey(
-        "academics.Subject", null=True, blank=True, on_delete=models.SET_NULL, related_name="question_banks"
+        "academics.Subject",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="question_banks",
     )
     grade = models.ForeignKey(
-        "academics.Grade", null=True, blank=True, on_delete=models.SET_NULL, related_name="question_banks"
+        "academics.Grade",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="question_banks",
     )
     is_archived = models.BooleanField(default=False)
     created_by = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="question_banks"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="question_banks",
     )
 
     class Meta:
         db_table = "questions_bank"
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["tenant", "name"], name="uniq_question_bank_name_per_tenant"),
+            models.UniqueConstraint(
+                fields=["tenant", "name"], name="uniq_question_bank_name_per_tenant"
+            ),
         ]
 
     def __str__(self):
@@ -69,7 +83,9 @@ class Question(TenantScopedModel):
     bank = models.ForeignKey(QuestionBank, on_delete=models.RESTRICT, related_name="questions")
     text = models.TextField()
     question_type = models.CharField(max_length=20, choices=QuestionType.choices)
-    difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
+    difficulty = models.CharField(
+        max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM
+    )
     topic = models.CharField(max_length=255, blank=True, default="")
     points = models.DecimalField(max_digits=6, decimal_places=2, default=1)
 
@@ -82,24 +98,36 @@ class Question(TenantScopedModel):
         max_length=10, choices=ReviewStatus.choices, default=ReviewStatus.PENDING, db_index=True
     )
     reviewed_by = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_questions"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_questions",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_note = models.TextField(blank=True, default="")
 
     is_archived = models.BooleanField(default=False)
     created_by = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="authored_questions"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="authored_questions",
     )
 
     class Meta:
         db_table = "questions_question"
         ordering = ["-created_at"]
         constraints = [
-            models.CheckConstraint(condition=models.Q(points__gt=0), name="question_points_positive"),
+            models.CheckConstraint(
+                condition=models.Q(points__gt=0), name="question_points_positive"
+            ),
         ]
         indexes = [
-            models.Index(fields=["tenant", "bank", "review_status"], name="question_bank_review_idx"),
+            models.Index(
+                fields=["tenant", "bank", "review_status"], name="question_bank_review_idx"
+            ),
             models.Index(fields=["tenant", "created_by"], name="question_author_idx"),
         ]
 
@@ -117,7 +145,9 @@ class QuestionOption(TenantScopedModel):
         db_table = "questions_option"
         ordering = ["question", "order"]
         constraints = [
-            models.UniqueConstraint(fields=["question", "order"], name="uniq_option_order_per_question"),
+            models.UniqueConstraint(
+                fields=["question", "order"], name="uniq_option_order_per_question"
+            ),
             # At most one correct option per question, enforced by the
             # database itself — so a bug can never make single-answer
             # scoring ambiguous. (At-least-one is checked in the

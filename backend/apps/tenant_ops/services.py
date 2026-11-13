@@ -63,7 +63,6 @@ from apps.exam_engine.models import ExamAttempt
 from apps.people.models import Enrollment
 from apps.questions.models import Question, QuestionBank
 
-
 # H-10: hard cap on import file size. Django's default DATA_UPLOAD_MAX_MEMORY_SIZE
 # is 2.5 MB, which is already too small for a "500 students" CSV in some cases,
 # but unbounded is worse. 10 MB is enough for a CSV of ~100K rows, and small
@@ -236,9 +235,7 @@ def export_tenant_data(tenant) -> dict[str, bytes]:
                 a.started_at,
                 a.submitted_at,
             )
-            for a in ExamAttempt.objects.for_tenant(tenant).select_related(
-                "student", "assessment"
-            )
+            for a in ExamAttempt.objects.for_tenant(tenant).select_related("student", "assessment")
         ],
     )
 
@@ -311,7 +308,7 @@ def export_tenant_data(tenant) -> dict[str, bytes]:
         f"التاريخ: {datetime.now().isoformat()}\n\n"
         "كل ملف CSV يمكن فتحه في Excel أو Google Sheets.\n"
         "الملفات المرفوعة (PDF، فيديو، إلخ) غير مضمنة، لكن أسماءها محفوظة في content.csv.\n"
-    ).encode("utf-8")
+    ).encode()
 
     return out
 
@@ -399,9 +396,7 @@ def validate_student_rows(tenant, academic_year, rows: list[dict]) -> list[dict]
         for g in Group.objects.for_tenant(tenant).filter(academic_year=academic_year)
     }
 
-    existing_tenant_emails = set(
-        User.objects.filter(tenant=tenant).values_list("email", flat=True)
-    )
+    existing_tenant_emails = set(User.objects.filter(tenant=tenant).values_list("email", flat=True))
     existing_global_emails = set(
         User.objects.values_list("email", flat=True).exclude(tenant=tenant)
     )

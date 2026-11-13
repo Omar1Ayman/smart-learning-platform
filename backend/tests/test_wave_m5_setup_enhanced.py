@@ -51,6 +51,8 @@ def test_after_complete_empty_until_fully_complete(api_client):
 def test_after_complete_populated_when_complete(api_client):
     """Build a tenant through all required steps, then assert the
     after-complete cards appear."""
+    from apps.people.models import TeacherAssignment
+
     from .factories import (
         AcademicYearFactory,
         ChapterFactory,
@@ -62,7 +64,6 @@ def test_after_complete_populated_when_complete(api_client):
         SubjectFactory,
         TeacherUserFactory,
     )
-    from apps.people.models import TeacherAssignment
 
     owner = UserFactory(role="OWNER")
     tenant = owner.tenant
@@ -75,14 +76,10 @@ def test_after_complete_populated_when_complete(api_client):
     course = CourseFactory(tenant=tenant, grade=grade, subject=subject)
     ChapterFactory(tenant=tenant, course=course)
     teacher = TeacherUserFactory(tenant=tenant)
-    ta = TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher, course=course
-    )
+    ta = TeacherAssignment.objects.create(tenant=tenant, teacher=teacher, course=course)
     ta.groups.set([group])
     student = UserFactory(tenant=tenant, role="STUDENT")
-    EnrollmentFactory(
-        tenant=tenant, student=student, group=group, academic_year=year
-    )
+    EnrollmentFactory(tenant=tenant, student=student, group=group, academic_year=year)
 
     client = login_as(api_client, owner)
     r = client.get("/api/v1/setup-status/")

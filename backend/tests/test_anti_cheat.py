@@ -3,7 +3,7 @@
 import pytest
 
 from apps.assessments.models import AssessmentQuestion, AssessmentTarget
-from apps.exam_engine.models import AttemptEvent, ExamAttempt
+from apps.exam_engine.models import AttemptEvent
 from apps.exam_engine.services import (
     compute_suspicion,
     record_attempt_event,
@@ -54,6 +54,7 @@ def _setup_active_attempt():
 
 # ---------- Event recording ----------
 
+
 def test_can_record_event_on_active_attempt():
     attempt, _s, _g = _setup_active_attempt()
     event = record_attempt_event(attempt, "TAB_HIDDEN", {"duration_ms": 5000})
@@ -80,6 +81,7 @@ def test_invalid_event_type_rejected():
 
 
 # ---------- Endpoint ----------
+
 
 def test_student_can_post_event(api_client):
     attempt, student, _g = _setup_active_attempt()
@@ -135,6 +137,7 @@ def test_teacher_cannot_post_event(api_client):
 
 
 # ---------- Suspicion scoring ----------
+
 
 def test_clean_attempt_has_zero_suspicion():
     attempt, _s, _g = _setup_active_attempt()
@@ -203,6 +206,7 @@ def test_breakdown_reports_per_type():
 
 
 # ---------- Grading payload includes events ----------
+
 
 def test_grading_payload_includes_events(api_client):
     attempt, _s, group = _setup_active_attempt()

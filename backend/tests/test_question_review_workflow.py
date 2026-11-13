@@ -91,7 +91,9 @@ def test_admin_can_reject_with_a_note(api_client):
 
     client = login_as(api_client, admin)
     resp = client.post(
-        f"/api/v1/questions/{question.id}/reject/", {"review_note": "الصياغة غير واضحة"}, format="json"
+        f"/api/v1/questions/{question.id}/reject/",
+        {"review_note": "الصياغة غير واضحة"},
+        format="json",
     )
     assert resp.status_code == 200, resp.data
     question.refresh_from_db()
@@ -106,7 +108,9 @@ def test_editing_an_approved_question_sends_it_back_to_pending(api_client):
     assert question.review_status == Question.ReviewStatus.APPROVED
 
     client = login_as(api_client, teacher)
-    resp = client.patch(f"/api/v1/questions/{question.id}/", {"text": "Updated wording?"}, format="json")
+    resp = client.patch(
+        f"/api/v1/questions/{question.id}/", {"text": "Updated wording?"}, format="json"
+    )
     assert resp.status_code == 200, resp.data
     question.refresh_from_db()
     assert question.review_status == Question.ReviewStatus.PENDING

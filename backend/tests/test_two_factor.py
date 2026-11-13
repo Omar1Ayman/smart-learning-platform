@@ -3,9 +3,6 @@
 import pyotp
 import pytest
 
-from apps.accounts.models import User
-from apps.accounts.two_factor import verify_recovery_code
-
 from .conftest import login_as
 from .factories import UserFactory
 
@@ -119,15 +116,11 @@ def test_recovery_code_works_once(api_client):
     recovery = data["recovery_codes"][0]
 
     # First use — success
-    r = _login_2fa(
-        api_client, user.email, "TestPass123!", recovery_code=recovery
-    )
+    r = _login_2fa(api_client, user.email, "TestPass123!", recovery_code=recovery)
     assert r.status_code == 200
 
     # Second use — fails (consumed)
-    r = _login_2fa(
-        api_client, user.email, "TestPass123!", recovery_code=recovery
-    )
+    r = _login_2fa(api_client, user.email, "TestPass123!", recovery_code=recovery)
     assert r.status_code == 400
 
 
@@ -170,6 +163,8 @@ def test_expired_twofa_token_rejected(api_client, settings):
 
     # Manipulate to force expiry — easiest: tamper the token
     r = api_client.post(
-        "/api/v1/auth/login/2fa/", {"twofa_token": token[:-5] + "xxxxx", "code": "000000"}, format="json"
+        "/api/v1/auth/login/2fa/",
+        {"twofa_token": token[:-5] + "xxxxx", "code": "000000"},
+        format="json",
     )
     assert r.status_code == 401

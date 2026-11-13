@@ -1,23 +1,15 @@
 """Wave M5 (Milestone 5, Batch 18) — admin reports endpoint."""
 
-from datetime import timedelta
-from decimal import Decimal
-
 import pytest
 from django.utils import timezone
 
-from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.attendance.models import AttendanceRecord, AttendanceSession
-from apps.exam_engine.models import ExamAttempt
-from apps.questions.models import Question
 
 from .conftest import login_as
 from .factories import (
     AssessmentFactory,
     EnrollmentFactory,
     GroupFactory,
-    QuestionBankFactory,
-    QuestionFactory,
     StudentUserFactory,
     TeacherUserFactory,
     UserFactory,
@@ -80,12 +72,8 @@ def test_attendance_by_group_aggregation(api_client):
         end_time="10:00",
         status=AttendanceSession.Status.CLOSED,
     )
-    AttendanceRecord.objects.create(
-        tenant=tenant, session=session, student=s1, status="PRESENT"
-    )
-    AttendanceRecord.objects.create(
-        tenant=tenant, session=session, student=s2, status="ABSENT"
-    )
+    AttendanceRecord.objects.create(tenant=tenant, session=session, student=s1, status="PRESENT")
+    AttendanceRecord.objects.create(tenant=tenant, session=session, student=s2, status="ABSENT")
 
     client = login_as(api_client, owner)
     r = client.get("/api/v1/dashboard/reports/?days=7")

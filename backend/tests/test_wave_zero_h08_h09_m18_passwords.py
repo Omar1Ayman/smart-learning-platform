@@ -17,8 +17,9 @@ its default password (DEFAULT_TEST_PASSWORD) — so login failed with 401
 admin is created via UserFactory, which sets DEFAULT_TEST_PASSWORD by
 default, so login_as works as intended.
 """
+
 import pytest
-from apps.accounts.models import User
+
 from .conftest import login_as
 from .factories import TenantFactory, UserFactory
 

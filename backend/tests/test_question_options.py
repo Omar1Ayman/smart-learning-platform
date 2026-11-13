@@ -4,7 +4,13 @@ from django.db import IntegrityError, transaction
 from apps.questions.models import Question, QuestionBank, QuestionOption
 
 from .conftest import login_as
-from .factories import QuestionBankFactory, QuestionFactory, TeacherUserFactory, TenantFactory, UserFactory
+from .factories import (
+    QuestionBankFactory,
+    QuestionFactory,
+    TeacherUserFactory,
+    TenantFactory,
+    UserFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -122,6 +128,8 @@ def test_true_false_rejects_non_canonical_option_texts(api_client):
     )
     assert resp.status_code == 400
     assert "options" in str(resp.data)
+
+
 def test_short_answer_requires_accepted_answers(api_client):
     bank = QuestionBankFactory()
     teacher = TeacherUserFactory(tenant=bank.tenant)
@@ -234,7 +242,6 @@ def test_question_bank_with_questions_cannot_be_deleted(api_client):
     resp = client.delete(f"/api/v1/question-banks/{bank.id}/")
     assert resp.status_code == 400
     assert QuestionBank.objects.filter(id=bank.id).exists()
-
 
 
 def test_owner_can_create_question_bank(api_client):

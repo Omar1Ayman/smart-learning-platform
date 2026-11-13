@@ -49,9 +49,7 @@ def _make_assessment_with_questions_and_targets(tenant=None, created_by=None):
             approved=True,
             created_by=creator,
         )
-        AssessmentQuestion.objects.create(
-            tenant=tenant, assessment=assessment, question=q, order=i
-        )
+        AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=i)
     AssessmentTarget.objects.create(
         tenant=tenant,
         assessment=assessment,
@@ -198,9 +196,7 @@ def test_course_duplicate_does_not_copy_teacher_assignments(api_client):
 
     tenant, owner, source = _make_course_with_chapters_and_lessons()
     teacher = TeacherUserFactory(tenant=tenant)
-    TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher, course=source
-    )
+    TeacherAssignment.objects.create(tenant=tenant, teacher=teacher, course=source)
     assert TeacherAssignment.objects.filter(course=source).count() == 1
 
     client = login_as(api_client, owner)

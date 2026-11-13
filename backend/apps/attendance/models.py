@@ -200,8 +200,6 @@ class AttendanceRecord(TenantScopedModel):
 
     def __str__(self):
         return f"{self.student.email} — {self.status} @ {self.session_id}"
-    
-    
 
 
 class GroupSchedule(TenantScopedModel):

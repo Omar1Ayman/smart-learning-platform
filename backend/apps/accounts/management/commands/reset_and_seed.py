@@ -30,8 +30,7 @@ What gets created:
       - content items (text/link/PDF)
 """
 
-import secrets
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
@@ -65,7 +64,6 @@ from apps.exam_engine.models import AttemptAnswer, ExamAttempt
 from apps.people.models import Enrollment, TeacherAssignment
 from apps.questions.models import Question, QuestionBank, QuestionOption
 from apps.tenants.models import Tenant
-
 
 SCHOOLS = [
     {
@@ -174,7 +172,9 @@ class Command(BaseCommand):
                 is_staff=True,
                 is_superuser=True,
             )
-            self.stdout.write(self.style.SUCCESS(f"✅ Platform admin: {admin_email} / AdminPass123!"))
+            self.stdout.write(
+                self.style.SUCCESS(f"✅ Platform admin: {admin_email} / AdminPass123!")
+            )
         else:
             self.stdout.write(self.style.WARNING(f"⚠️  Platform admin exists: {admin_email}"))
 
@@ -203,7 +203,9 @@ class Command(BaseCommand):
             self.stdout.write(f"   Owner:    {school['owner_email']} / {school['owner_password']}")
             self.stdout.write(f"   Admin:    {school['admin_email']} / {school['admin_password']}")
             self.stdout.write(f"   Teacher:  {school['teachers'][0][0]} / TeacherPass123!")
-            self.stdout.write(f"   Parent:   {school['parent_email']} / {school['parent_password']}")
+            self.stdout.write(
+                f"   Parent:   {school['parent_email']} / {school['parent_password']}"
+            )
 
     # =====================================================================
     # Wipe
@@ -294,13 +296,26 @@ class Command(BaseCommand):
 
         # Students with parent info on the first two (for parent portal demo)
         student_names = [
-            ("يوسف", "إبراهيم"), ("مريم", "عبد الله"), ("عمر", "السيد"),
-            ("نور", "حسين"), ("كريم", "فتحي"), ("ليلى", "مسعود"),
-            ("زياد", "رجب"), ("هدى", "الشريف"), ("أمير", "كمال"),
-            ("رنا", "سامي"), ("ياسمين", "طه"), ("بشار", "عمران"),
-            ("دينا", "خالد"), ("حمزة", "منصور"), ("سلمى", "جابر"),
-            ("أنس", "شوقي"), ("ميار", "عبد العزيز"), ("رامي", "شعبان"),
-            ("جنى", "أيمن"), ("سيف", "عثمان"),
+            ("يوسف", "إبراهيم"),
+            ("مريم", "عبد الله"),
+            ("عمر", "السيد"),
+            ("نور", "حسين"),
+            ("كريم", "فتحي"),
+            ("ليلى", "مسعود"),
+            ("زياد", "رجب"),
+            ("هدى", "الشريف"),
+            ("أمير", "كمال"),
+            ("رنا", "سامي"),
+            ("ياسمين", "طه"),
+            ("بشار", "عمران"),
+            ("دينا", "خالد"),
+            ("حمزة", "منصور"),
+            ("سلمى", "جابر"),
+            ("أنس", "شوقي"),
+            ("ميار", "عبد العزيز"),
+            ("رامي", "شعبان"),
+            ("جنى", "أيمن"),
+            ("سيف", "عثمان"),
         ][: school["students_count"]]
 
         students = []
@@ -339,7 +354,9 @@ class Command(BaseCommand):
                 tenant=tenant,
                 parent=parent_user,
                 student=students[child_idx],
-                relationship=ParentChild.Relationship.FATHER if i == 0 else ParentChild.Relationship.MOTHER,
+                relationship=ParentChild.Relationship.FATHER
+                if i == 0
+                else ParentChild.Relationship.MOTHER,
                 is_primary=(i == 0),
             )
 
@@ -360,14 +377,20 @@ class Command(BaseCommand):
         )
 
         Term.objects.create(
-            tenant=tenant, academic_year=year_current,
+            tenant=tenant,
+            academic_year=year_current,
             name="الفصل الأول",
-            start_date=date(2025, 9, 1), end_date=date(2026, 1, 15), order=1,
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 1, 15),
+            order=1,
         )
         Term.objects.create(
-            tenant=tenant, academic_year=year_current,
+            tenant=tenant,
+            academic_year=year_current,
             name="الفصل الثاني",
-            start_date=date(2026, 1, 20), end_date=date(2026, 6, 15), order=2,
+            start_date=date(2026, 1, 20),
+            end_date=date(2026, 6, 15),
+            order=2,
         )
 
         stages = {}
@@ -377,13 +400,18 @@ class Command(BaseCommand):
         grades = {}
         for g_name, g_order, s_name in school["grades"]:
             grades[g_name] = Grade.objects.create(
-                tenant=tenant, stage=stages[s_name], name=g_name, order=g_order,
+                tenant=tenant,
+                stage=stages[s_name],
+                name=g_name,
+                order=g_order,
             )
 
         subjects = {}
         for s_name, s_code in school["subjects"]:
             subjects[s_code] = Subject.objects.create(
-                tenant=tenant, name=s_name, code=s_code,
+                tenant=tenant,
+                name=s_name,
+                code=s_code,
             )
 
         # Groups
@@ -405,21 +433,28 @@ class Command(BaseCommand):
             for code, subject in subjects.items():
                 course_name = f"{subject.name} — {g_name}"
                 courses[(g_name, code)] = Course.objects.create(
-                    tenant=tenant, subject=subject, grade=grade,
-                    academic_year=year_current, name=course_name,
+                    tenant=tenant,
+                    subject=subject,
+                    grade=grade,
+                    academic_year=year_current,
+                    name=course_name,
                 )
 
         # Chapters + Lessons for first course
         for key, course in list(courses.items())[:3]:
             for ch_idx in range(1, 3):
                 chapter = Chapter.objects.create(
-                    tenant=tenant, course=course,
-                    name=f"الوحدة {ch_idx}", order=ch_idx,
+                    tenant=tenant,
+                    course=course,
+                    name=f"الوحدة {ch_idx}",
+                    order=ch_idx,
                 )
                 for l_idx in range(1, 3):
                     Lesson.objects.create(
-                        tenant=tenant, chapter=chapter,
-                        name=f"الدرس {ch_idx}.{l_idx}", order=l_idx,
+                        tenant=tenant,
+                        chapter=chapter,
+                        name=f"الدرس {ch_idx}.{l_idx}",
+                        order=l_idx,
                     )
 
         # ----- Enrollments -----
@@ -429,8 +464,11 @@ class Command(BaseCommand):
             group = all_groups[idx % len(all_groups)]
             enrollments.append(
                 Enrollment.objects.create(
-                    tenant=tenant, student=student, group=group,
-                    academic_year=year_current, status=Enrollment.Status.ACTIVE,
+                    tenant=tenant,
+                    student=student,
+                    group=group,
+                    academic_year=year_current,
+                    status=Enrollment.Status.ACTIVE,
                 )
             )
 
@@ -440,7 +478,9 @@ class Command(BaseCommand):
             if idx < len(all_courses):
                 course = all_courses[idx]
                 ta = TeacherAssignment.objects.create(
-                    tenant=tenant, teacher=teacher, course=course,
+                    tenant=tenant,
+                    teacher=teacher,
+                    course=course,
                 )
                 grade_groups = [g for g in all_groups if g.grade_id == course.grade_id]
                 if grade_groups:
@@ -450,9 +490,13 @@ class Command(BaseCommand):
         weekday = (timezone.localdate().weekday() + 1) % 7
         for group in all_groups[:2]:
             GroupSchedule.objects.create(
-                tenant=tenant, group=group, weekday=weekday,
-                start_time=time(9, 0), end_time=time(10, 0),
-                teacher=teachers[0], is_active=True,
+                tenant=tenant,
+                group=group,
+                weekday=weekday,
+                start_time=time(9, 0),
+                end_time=time(10, 0),
+                teacher=teachers[0],
+                is_active=True,
             )
 
         # ----- Content -----
@@ -478,7 +522,8 @@ class Command(BaseCommand):
 
         # ----- Question banks + questions -----
         bank = QuestionBank.objects.create(
-            tenant=tenant, name=f"بنك أسئلة — {school['name']}",
+            tenant=tenant,
+            name=f"بنك أسئلة — {school['name']}",
             subject=list(subjects.values())[0],
             grade=list(grades.values())[0],
             created_by=teachers[0],
@@ -488,63 +533,85 @@ class Command(BaseCommand):
 
         # MCQ 1
         q1 = Question.objects.create(
-            tenant=tenant, bank=bank,
+            tenant=tenant,
+            bank=bank,
             text="ما هو حل المعادلة 2x + 4 = 10؟",
             question_type=Question.QuestionType.MCQ,
             difficulty=Question.Difficulty.EASY,
             points=Decimal("2.00"),
             review_status=Question.ReviewStatus.APPROVED,
-            reviewed_by=owner, reviewed_at=timezone.now(),
+            reviewed_by=owner,
+            reviewed_at=timezone.now(),
             created_by=teachers[0],
         )
-        for i, (t, c) in enumerate([("x=2", False), ("x=3", True), ("x=4", False), ("x=5", False)], 1):
+        for i, (t, c) in enumerate(
+            [("x=2", False), ("x=3", True), ("x=4", False), ("x=5", False)], 1
+        ):
             QuestionOption.objects.create(
-                tenant=tenant, question=q1, text=t, is_correct=c, order=i,
+                tenant=tenant,
+                question=q1,
+                text=t,
+                is_correct=c,
+                order=i,
             )
         approved_qs.append(q1)
 
         # MCQ 2
         q2 = Question.objects.create(
-            tenant=tenant, bank=bank,
+            tenant=tenant,
+            bank=bank,
             text="ما هو ناتج 5² ؟",
             question_type=Question.QuestionType.MCQ,
             difficulty=Question.Difficulty.EASY,
             points=Decimal("2.00"),
             review_status=Question.ReviewStatus.APPROVED,
-            reviewed_by=owner, reviewed_at=timezone.now(),
+            reviewed_by=owner,
+            reviewed_at=timezone.now(),
             created_by=teachers[0],
         )
         for i, (t, c) in enumerate([("10", False), ("20", False), ("25", True), ("50", False)], 1):
             QuestionOption.objects.create(
-                tenant=tenant, question=q2, text=t, is_correct=c, order=i,
+                tenant=tenant,
+                question=q2,
+                text=t,
+                is_correct=c,
+                order=i,
             )
         approved_qs.append(q2)
 
         # TRUE_FALSE
         q3 = Question.objects.create(
-            tenant=tenant, bank=bank,
+            tenant=tenant,
+            bank=bank,
             text="المعادلة x + 3 = 5 لها حل وحيد هو x = 2.",
             question_type=Question.QuestionType.TRUE_FALSE,
             difficulty=Question.Difficulty.EASY,
             points=Decimal("2.00"),
             review_status=Question.ReviewStatus.APPROVED,
-            reviewed_by=owner, reviewed_at=timezone.now(),
+            reviewed_by=owner,
+            reviewed_at=timezone.now(),
             created_by=teachers[0],
         )
-        QuestionOption.objects.create(tenant=tenant, question=q3, text="صح", is_correct=True, order=1)
-        QuestionOption.objects.create(tenant=tenant, question=q3, text="خطأ", is_correct=False, order=2)
+        QuestionOption.objects.create(
+            tenant=tenant, question=q3, text="صح", is_correct=True, order=1
+        )
+        QuestionOption.objects.create(
+            tenant=tenant, question=q3, text="خطأ", is_correct=False, order=2
+        )
         approved_qs.append(q3)
 
         # SHORT_ANSWER
         q4 = Question.objects.create(
-            tenant=tenant, bank=bank,
+            tenant=tenant,
+            bank=bank,
             text="ما هو الجذر التربيعي لـ 16؟",
             question_type=Question.QuestionType.SHORT_ANSWER,
             difficulty=Question.Difficulty.EASY,
             points=Decimal("2.00"),
             accepted_answers=["4", "أربعة"],
             review_status=Question.ReviewStatus.APPROVED,
-            reviewed_by=owner, reviewed_at=timezone.now(),
+            reviewed_by=owner,
+            reviewed_at=timezone.now(),
             created_by=teachers[0],
         )
         approved_qs.append(q4)
@@ -556,7 +623,9 @@ class Command(BaseCommand):
             description="امتحان شهري على الوحدة الأولى",
             assessment_type=Assessment.AssessmentType.MONTHLY_EXAM,
             status=Assessment.Status.PUBLISHED,
-            duration_minutes=30, max_attempts=2, passing_score=Decimal("50.00"),
+            duration_minutes=30,
+            max_attempts=2,
+            passing_score=Decimal("50.00"),
             starts_at=timezone.now() - timedelta(days=3),
             ends_at=timezone.now() + timedelta(days=30),
             published_at=timezone.now() - timedelta(days=3),
@@ -564,10 +633,14 @@ class Command(BaseCommand):
         )
         for i, q in enumerate(approved_qs, 1):
             AssessmentQuestion.objects.create(
-                tenant=tenant, assessment=assessment, question=q, order=i,
+                tenant=tenant,
+                assessment=assessment,
+                question=q,
+                order=i,
             )
         AssessmentTarget.objects.create(
-            tenant=tenant, assessment=assessment,
+            tenant=tenant,
+            assessment=assessment,
             target_type=AssessmentTarget.TargetType.GRADE,
             grade=list(grades.values())[0],
         )
@@ -578,7 +651,8 @@ class Command(BaseCommand):
             title="اختبار تدريبي — الرياضيات",
             assessment_type=Assessment.AssessmentType.PRACTICE,
             status=Assessment.Status.DRAFT,
-            duration_minutes=None, max_attempts=5,
+            duration_minutes=None,
+            max_attempts=5,
             created_by=teachers[0],
         )
 
@@ -595,11 +669,7 @@ class Command(BaseCommand):
                 assessment=assessment,
                 student=student,
                 attempt_number=1,
-                status=(
-                    ExamAttempt.Status.GRADED
-                    if is_graded
-                    else ExamAttempt.Status.SUBMITTED
-                ),
+                status=(ExamAttempt.Status.GRADED if is_graded else ExamAttempt.Status.SUBMITTED),
                 question_order=[str(q.id) for q in approved_qs],
                 max_score=Decimal("8.00"),
                 score=Decimal("6.00") if is_graded else None,
@@ -648,25 +718,32 @@ class Command(BaseCommand):
             group=group_for_attendance,
             teacher=teachers[0],
             date=timezone.localdate() - timedelta(days=1),
-            start_time=time(9, 0), end_time=time(10, 0),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
             status=AttendanceSession.Status.CLOSED,
             mode=AttendanceSession.Mode.HYBRID,
             opened_at=timezone.now() - timedelta(days=1, hours=1),
             closed_at=timezone.now() - timedelta(days=1),
             created_by=owner,
         )
-        group_enrollments = [
-            e for e in enrollments if e.group_id == group_for_attendance.id
-        ]
+        group_enrollments = [e for e in enrollments if e.group_id == group_for_attendance.id]
         for i, e in enumerate(group_enrollments):
             status = (
-                AttendanceRecord.Status.PRESENT if i % 3 == 0
-                else AttendanceRecord.Status.LATE if i % 3 == 1
+                AttendanceRecord.Status.PRESENT
+                if i % 3 == 0
+                else AttendanceRecord.Status.LATE
+                if i % 3 == 1
                 else AttendanceRecord.Status.ABSENT
             )
             AttendanceRecord.objects.create(
-                tenant=tenant, session=att_session, student=e.student,
+                tenant=tenant,
+                session=att_session,
+                student=e.student,
                 status=status,
-                check_in_method=AttendanceRecord.Method.QR if status != AttendanceRecord.Status.ABSENT else AttendanceRecord.Method.AUTO,
-                check_in_at=timezone.now() - timedelta(days=1, hours=1) if status != AttendanceRecord.Status.ABSENT else None,
+                check_in_method=AttendanceRecord.Method.QR
+                if status != AttendanceRecord.Status.ABSENT
+                else AttendanceRecord.Method.AUTO,
+                check_in_at=timezone.now() - timedelta(days=1, hours=1)
+                if status != AttendanceRecord.Status.ABSENT
+                else None,
             )

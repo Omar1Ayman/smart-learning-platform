@@ -44,7 +44,6 @@ from .models import (
     Subject,
 )
 
-
 REQUIRED_HEADERS = {
     "academic_year",
     "stage",
@@ -86,20 +85,13 @@ def validate_curriculum_rows(tenant, rows: list[dict]) -> list[RowAnalysis]:
     This is what makes the preview's "will create X stages" count accurate.
     """
     # Preload existing names for O(1) lookups.
-    existing_years = {
-        y.name.strip().lower(): y
-        for y in AcademicYear.objects.for_tenant(tenant)
-    }
-    existing_stages = {
-        s.name.strip().lower(): s for s in Stage.objects.for_tenant(tenant)
-    }
+    existing_years = {y.name.strip().lower(): y for y in AcademicYear.objects.for_tenant(tenant)}
+    existing_stages = {s.name.strip().lower(): s for s in Stage.objects.for_tenant(tenant)}
     existing_grades = {
         (g.stage.name.strip().lower(), g.name.strip().lower()): g
         for g in Grade.objects.for_tenant(tenant).select_related("stage")
     }
-    existing_subjects = {
-        s.name.strip().lower(): s for s in Subject.objects.for_tenant(tenant)
-    }
+    existing_subjects = {s.name.strip().lower(): s for s in Subject.objects.for_tenant(tenant)}
     existing_courses = {
         (
             c.grade.name.strip().lower(),
@@ -135,6 +127,7 @@ def validate_curriculum_rows(tenant, rows: list[dict]) -> list[RowAnalysis]:
     analysis: list[RowAnalysis] = []
 
     for idx, row in enumerate(rows, start=2):
+
         def get(k: str, default: str = "") -> str:
             return (row.get(k) or default).strip()
 
@@ -288,9 +281,7 @@ def summarize_will_create(analysis: list[RowAnalysis]) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
-def import_curriculum(
-    tenant, analysis: list[RowAnalysis], author: User
-) -> dict[str, int]:
+def import_curriculum(tenant, analysis: list[RowAnalysis], author: User) -> dict[str, int]:
     """Create the full hierarchy for every valid row, in one transaction.
 
     Assumes the caller already ran `validate_curriculum_rows` and
@@ -308,20 +299,13 @@ def import_curriculum(
     with transaction.atomic():
         # Caches — populated lazily as we walk the file, so each row only
         # hits the DB for objects it actually needs.
-        years = {
-            y.name.strip().lower(): y
-            for y in AcademicYear.objects.for_tenant(tenant)
-        }
-        stages = {
-            s.name.strip().lower(): s for s in Stage.objects.for_tenant(tenant)
-        }
+        years = {y.name.strip().lower(): y for y in AcademicYear.objects.for_tenant(tenant)}
+        stages = {s.name.strip().lower(): s for s in Stage.objects.for_tenant(tenant)}
         grades = {
             (g.stage.name.strip().lower(), g.name.strip().lower()): g
             for g in Grade.objects.for_tenant(tenant).select_related("stage")
         }
-        subjects = {
-            s.name.strip().lower(): s for s in Subject.objects.for_tenant(tenant)
-        }
+        subjects = {s.name.strip().lower(): s for s in Subject.objects.for_tenant(tenant)}
         courses = {
             (
                 c.grade.name.strip().lower(),
@@ -344,7 +328,7 @@ def import_curriculum(
 
         # Auto-number orders per parent (for rows that leave them blank).
         next_chapter_order: dict[int, int] = {}  # course_id → next order
-        next_lesson_order: dict[int, int] = {}   # chapter_id → next order
+        next_lesson_order: dict[int, int] = {}  # chapter_id → next order
 
         def ensure_order_map_initialized(course_id: int, chapter_id: int):
             if course_id not in next_chapter_order:
@@ -398,9 +382,7 @@ def import_curriculum(
                     tenant=tenant,
                     stage=stage,
                     name=row.grade.strip(),
-                    order=(
-                        Grade.objects.filter(stage=stage).count() + 1
-                    ),
+                    order=(Grade.objects.filter(stage=stage).count() + 1),
                 )
                 grades[grade_key] = grade
                 counts["created_grades"] += 1
@@ -408,9 +390,7 @@ def import_curriculum(
             # --- Subject ---
             subject = subjects.get(subject_key)
             if subject is None:
-                subject = Subject.objects.create(
-                    tenant=tenant, name=row.subject.strip()
-                )
+                subject = Subject.objects.create(tenant=tenant, name=row.subject.strip())
                 subjects[subject_key] = subject
                 counts["created_subjects"] += 1
 
@@ -505,9 +485,7 @@ def build_template_xlsx() -> io.BytesIO:
     ]
 
     header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(
-        start_color="2B3A67", end_color="2B3A67", fill_type="solid"
-    )
+    header_fill = PatternFill(start_color="2B3A67", end_color="2B3A67", fill_type="solid")
     center = Alignment(horizontal="center", vertical="center")
 
     for i, h in enumerate(headers, start=1):
@@ -517,11 +495,61 @@ def build_template_xlsx() -> io.BytesIO:
         cell.alignment = center
 
     examples = [
-        ["2025/2026", "الثانوية", "أولى ثانوي", "رياضيات", "رياضيات — أولى ثانوي", "الجبر", "1", "المعادلات الخطية", "1"],
-        ["2025/2026", "الثانوية", "أولى ثانوي", "رياضيات", "رياضيات — أولى ثانوي", "الجبر", "1", "المتباينات", "2"],
-        ["2025/2026", "الثانوية", "أولى ثانوي", "رياضيات", "رياضيات — أولى ثانوي", "الهندسة", "2", "المثلثات", "1"],
-        ["2025/2026", "الثانوية", "أولى ثانوي", "أحياء", "أحياء — أولى ثانوي", "الخلية", "1", "تركيب الخلية", "1"],
-        ["2025/2026", "الثانوية", "أولى ثانوي", "أحياء", "أحياء — أولى ثانوي", "الخلية", "1", "الانقسام الخلوي", "2"],
+        [
+            "2025/2026",
+            "الثانوية",
+            "أولى ثانوي",
+            "رياضيات",
+            "رياضيات — أولى ثانوي",
+            "الجبر",
+            "1",
+            "المعادلات الخطية",
+            "1",
+        ],
+        [
+            "2025/2026",
+            "الثانوية",
+            "أولى ثانوي",
+            "رياضيات",
+            "رياضيات — أولى ثانوي",
+            "الجبر",
+            "1",
+            "المتباينات",
+            "2",
+        ],
+        [
+            "2025/2026",
+            "الثانوية",
+            "أولى ثانوي",
+            "رياضيات",
+            "رياضيات — أولى ثانوي",
+            "الهندسة",
+            "2",
+            "المثلثات",
+            "1",
+        ],
+        [
+            "2025/2026",
+            "الثانوية",
+            "أولى ثانوي",
+            "أحياء",
+            "أحياء — أولى ثانوي",
+            "الخلية",
+            "1",
+            "تركيب الخلية",
+            "1",
+        ],
+        [
+            "2025/2026",
+            "الثانوية",
+            "أولى ثانوي",
+            "أحياء",
+            "أحياء — أولى ثانوي",
+            "الخلية",
+            "1",
+            "الانقسام الخلوي",
+            "2",
+        ],
     ]
 
     for r_idx, row in enumerate(examples, start=2):

@@ -13,12 +13,14 @@ manager. IDs come from the attempt's own question_order snapshot (so they
 are safe by construction), but using `for_tenant` keeps the codebase
 consistent: every read of a tenant-owned model goes through for_tenant.
 """
-from rest_framework import serializers
 
 from decimal import Decimal
 
-from .models import AttemptAnswer, AttemptEvent, ExamAttempt
+from rest_framework import serializers
+
 from apps.questions.models import Question, QuestionOption
+
+from .models import AttemptAnswer, AttemptEvent, ExamAttempt
 
 
 class OptionForStudentSerializer(serializers.ModelSerializer):
@@ -107,11 +109,10 @@ class AttemptDetailSerializer(serializers.ModelSerializer):
 
     def get_answers(self, obj):
         policy = obj.tenant.get_policy("exam_policy")
-        show = (
-            obj.status
-            in (ExamAttempt.Status.SUBMITTED, ExamAttempt.Status.GRADED)
-            and policy.get("show_correct_answers_after_submit", True)
-        )
+        show = obj.status in (
+            ExamAttempt.Status.SUBMITTED,
+            ExamAttempt.Status.GRADED,
+        ) and policy.get("show_correct_answers_after_submit", True)
         return {
             str(a.question_id): {
                 "chosen_option": str(a.chosen_option_id) if a.chosen_option_id else None,
@@ -203,14 +204,10 @@ class AttemptResultSerializer(serializers.ModelSerializer):
                 "question": str(a.question_id),
                 "question_text": a.question.text,
                 "question_type": a.question.question_type,
-                "chosen_option": (
-                    str(a.chosen_option_id) if a.chosen_option_id else None
-                ),
+                "chosen_option": (str(a.chosen_option_id) if a.chosen_option_id else None),
                 "text_answer": a.text_answer or "",
                 "is_correct": a.is_correct if show else None,
-                "awarded_points": (
-                    str(a.awarded_points) if a.awarded_points is not None else None
-                ),
+                "awarded_points": (str(a.awarded_points) if a.awarded_points is not None else None),
                 "explanation": a.question.explanation if show else None,
             }
             for a in obj.answers.all().select_related("question")
@@ -291,6 +288,8 @@ class AttemptResultSerializer(serializers.ModelSerializer):
             if consumed >= assessment.max_attempts:
                 return f"لقد استخدمت كل المحاولات ({assessment.max_attempts})."
         return None
+
+
 class SaveAnswerSerializer(serializers.Serializer):
     question = serializers.UUIDField()
     chosen_option = serializers.UUIDField(required=False, allow_null=True)

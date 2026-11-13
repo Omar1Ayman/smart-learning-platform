@@ -1,4 +1,5 @@
 import pytest
+
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.tenants.models import Tenant

@@ -31,8 +31,23 @@ class DemoRequestAdmin(admin.ModelAdmin):
     search_fields = ["school_name", "contact_name", "email", "phone"]
     readonly_fields = ["id", "created_at", "updated_at", "reviewed_at", "reviewed_by"]
     fieldsets = (
-        ("البيانات الأساسية", {"fields": ("school_name", "contact_name", "email", "phone", "num_students", "message")}),
-        ("حالة المراجعة", {"fields": ("status", "notes", "reviewed_by", "reviewed_at", "converted_tenant")}),
+        (
+            "البيانات الأساسية",
+            {
+                "fields": (
+                    "school_name",
+                    "contact_name",
+                    "email",
+                    "phone",
+                    "num_students",
+                    "message",
+                )
+            },
+        ),
+        (
+            "حالة المراجعة",
+            {"fields": ("status", "notes", "reviewed_by", "reviewed_at", "converted_tenant")},
+        ),
         ("Metadata", {"fields": ("id", "created_at", "updated_at"), "classes": ("collapse",)}),
     )
     actions = ["mark_contacted", "mark_declined"]

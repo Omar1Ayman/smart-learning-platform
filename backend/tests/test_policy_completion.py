@@ -34,7 +34,10 @@ def test_teacher_cannot_edit_others_content_by_default(api_client):
     teacher_a = TeacherUserFactory(tenant=tenant)
     teacher_b = TeacherUserFactory(tenant=tenant)
     content = Content.objects.create(
-        tenant=tenant, title="A's notes", content_type="TEXT", text_body="x",
+        tenant=tenant,
+        title="A's notes",
+        content_type="TEXT",
+        text_body="x",
         created_by=teacher_a,
     )
 
@@ -53,7 +56,10 @@ def test_teacher_can_edit_others_content_when_policy_allows(api_client):
     teacher_a = TeacherUserFactory(tenant=tenant)
     teacher_b = TeacherUserFactory(tenant=tenant)
     content = Content.objects.create(
-        tenant=tenant, title="A's notes", content_type="TEXT", text_body="x",
+        tenant=tenant,
+        title="A's notes",
+        content_type="TEXT",
+        text_body="x",
         created_by=teacher_a,
     )
 
@@ -137,14 +143,15 @@ def _setup_submitted_attempt(tenant_policy_update=None):
     )
     bank = QuestionBankFactory(tenant=tenant)
     q = QuestionFactory(
-        bank=bank, tenant=tenant, question_type="MCQ", approved=True,
+        bank=bank,
+        tenant=tenant,
+        question_type="MCQ",
+        approved=True,
         created_by=TeacherUserFactory(tenant=tenant),
     )
     correct = q.options.create(tenant=tenant, text="A", is_correct=True, order=1)
     q.options.create(tenant=tenant, text="B", is_correct=False, order=2)
-    AssessmentQuestion.objects.create(
-        tenant=tenant, assessment=assessment, question=q, order=1
-    )
+    AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=1)
 
     attempt = start_attempt(assessment, student, tenant)
     save_answer(attempt, q.id, chosen_option_id=correct.id)
@@ -153,9 +160,7 @@ def _setup_submitted_attempt(tenant_policy_update=None):
 
 
 def test_result_hides_correctness_when_policy_off(api_client):
-    attempt, student = _setup_submitted_attempt(
-        {"show_correct_answers_after_submit": False}
-    )
+    attempt, student = _setup_submitted_attempt({"show_correct_answers_after_submit": False})
 
     client = login_as(api_client, student)
     r = client.get(f"/api/v1/attempts/{attempt.id}/result/")
@@ -169,9 +174,7 @@ def test_result_hides_correctness_when_policy_off(api_client):
 
 
 def test_result_shows_correctness_when_policy_on(api_client):
-    attempt, student = _setup_submitted_attempt(
-        {"show_correct_answers_after_submit": True}
-    )
+    attempt, student = _setup_submitted_attempt({"show_correct_answers_after_submit": True})
 
     client = login_as(api_client, student)
     r = client.get(f"/api/v1/attempts/{attempt.id}/result/")
@@ -205,19 +208,20 @@ def test_auto_submit_triggers_after_threshold(api_client):
     )
     bank = QuestionBankFactory(tenant=tenant)
     q = QuestionFactory(
-        bank=bank, tenant=tenant, approved=True,
+        bank=bank,
+        tenant=tenant,
+        approved=True,
         created_by=TeacherUserFactory(tenant=tenant),
     )
-    AssessmentQuestion.objects.create(
-        tenant=tenant, assessment=assessment, question=q, order=1
-    )
+    AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=1)
     attempt = start_attempt(assessment, student, tenant)
 
     client = login_as(api_client, student)
     # First event — no auto-submit yet
     r1 = client.post(
         f"/api/v1/attempts/{attempt.id}/event/",
-        {"event_type": "TAB_HIDDEN"}, format="json",
+        {"event_type": "TAB_HIDDEN"},
+        format="json",
     )
     assert r1.status_code == 201
     attempt.refresh_from_db()
@@ -226,7 +230,8 @@ def test_auto_submit_triggers_after_threshold(api_client):
     # Second event — threshold hit → auto-submit
     r2 = client.post(
         f"/api/v1/attempts/{attempt.id}/event/",
-        {"event_type": "TAB_HIDDEN"}, format="json",
+        {"event_type": "TAB_HIDDEN"},
+        format="json",
     )
     assert r2.status_code == 200
     assert r2.data.get("detail") == "auto_submitted"

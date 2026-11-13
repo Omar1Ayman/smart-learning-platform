@@ -1,6 +1,7 @@
 """Phase 1.1 — Billing API tests."""
 
 import pytest
+
 from apps.billing.models import Plan
 from apps.billing.services import assign_plan
 
@@ -39,9 +40,7 @@ def test_plans_list_is_public(api_client, free_plan, pro_plan):
 
 
 def test_plans_excludes_inactive(api_client, free_plan):
-    Plan.objects.create(
-        key="hidden", name="Hidden", is_active=False, is_public=True
-    )
+    Plan.objects.create(key="hidden", name="Hidden", is_active=False, is_public=True)
     r = api_client.get("/api/v1/billing/plans/")
     keys = [p["key"] for p in r.data]
     assert "hidden" not in keys
@@ -67,9 +66,7 @@ def test_me_returns_implicit_free_when_no_subscription(api_client, free_plan):
     assert r.data["limits"]["max_students"] == 30
 
 
-def test_me_returns_subscription_after_assign(
-    api_client, free_plan, pro_plan
-):
+def test_me_returns_subscription_after_assign(api_client, free_plan, pro_plan):
     tenant = TenantFactory()
     owner = UserFactory(tenant=tenant, role="OWNER")
     assign_plan(tenant, "pro", status="ACTIVE")

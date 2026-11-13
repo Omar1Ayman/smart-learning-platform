@@ -12,7 +12,7 @@ from apps.common.permissions import IsTenantMember
 from apps.exam_engine.models import ExamAttempt
 from apps.people.models import Enrollment
 
-from .models import ParentChild, User
+from .models import ParentChild
 from .permissions_parent import IsParent
 from .serializers_parent import (
     ChildDetailSerializer,
@@ -51,11 +51,7 @@ def _build_child_summary(student, link):
         student=student, status__in=["GRADED", "SUBMITTED"]
     )
     graded = [a for a in attempts if a.status == "GRADED" and a.score is not None]
-    avg_pct = (
-        round(sum(float(a.percentage) for a in graded) / len(graded), 1)
-        if graded
-        else None
-    )
+    avg_pct = round(sum(float(a.percentage) for a in graded) / len(graded), 1) if graded else None
 
     return {
         "id": student.id,
@@ -68,9 +64,7 @@ def _build_child_summary(student, link):
         "group_name": enrollment.group.name if enrollment else None,
         "grade_name": enrollment.group.grade.name if enrollment else None,
         "stage_name": enrollment.group.grade.stage.name if enrollment else None,
-        "academic_year_name": (
-            enrollment.academic_year.name if enrollment else None
-        ),
+        "academic_year_name": (enrollment.academic_year.name if enrollment else None),
         "attendance_pct": attendance_pct,
         "avg_percentage": avg_pct,
         "total_attempts": len(graded),
@@ -207,9 +201,7 @@ class AdminParentLinkViewSet(TenantContextMixin, APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         links = (
-            ParentChild.objects.filter(
-                tenant=request.tenant, student_id=student_id
-            )
+            ParentChild.objects.filter(tenant=request.tenant, student_id=student_id)
             .select_related("parent")
             .order_by("-is_primary", "relationship")
         )
@@ -231,9 +223,7 @@ class AdminParentLinkViewSet(TenantContextMixin, APIView):
     def post(self, request):
         """POST {parent, student, relationship?, is_primary?}"""
         self._check_admin(request)
-        serializer = ParentChildLinkSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = ParentChildLinkSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         v = serializer.validated_data
 
@@ -256,9 +246,7 @@ class AdminParentLinkViewSet(TenantContextMixin, APIView):
     def delete(self, request, link_id=None):
         """DELETE /api/v1/admin/parent-links/{link_id}/"""
         self._check_admin(request)
-        link = ParentChild.objects.filter(
-            tenant=request.tenant, id=link_id
-        ).first()
+        link = ParentChild.objects.filter(tenant=request.tenant, id=link_id).first()
         if link is None:
             return Response(
                 {"error": {"status": 404, "detail": "الرابط غير موجود."}},

@@ -70,14 +70,10 @@ class AttendanceSessionViewSet(YearAwareViewSet):
             and request.user.role == User.Role.TEACHER
             and not user_can(request.user, "teachers_can_mark_attendance")
         ):
-            raise PermissionDenied(
-                "إدارة الحضور غير مسموحة لك حسب إعدادات المؤسسة."
-            )
+            raise PermissionDenied("إدارة الحضور غير مسموحة لك حسب إعدادات المؤسسة.")
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related(
-            "group", "course", "lesson", "teacher"
-        )
+        qs = super().get_queryset().select_related("group", "course", "lesson", "teacher")
         user = self.request.user
 
         if user.role in (User.Role.OWNER, User.Role.ADMIN):
@@ -93,12 +89,8 @@ class AttendanceSessionViewSet(YearAwareViewSet):
 
         # TEACHER — sessions they own OR (via assignment) for a group
         # they're assigned to. Same rule used for enrollment scoping.
-        assignments = TeacherAssignment.objects.for_tenant(
-            self.request.tenant
-        ).filter(teacher=user)
-        narrowed = assignments.filter(groups__isnull=False).values_list(
-            "groups__id", flat=True
-        )
+        assignments = TeacherAssignment.objects.for_tenant(self.request.tenant).filter(teacher=user)
+        narrowed = assignments.filter(groups__isnull=False).values_list("groups__id", flat=True)
         whole_grade = assignments.filter(groups__isnull=True).values_list(
             "course__grade_id", flat=True
         )
@@ -115,9 +107,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         # Teachers can only create sessions for their assigned groups.
         if user.role == User.Role.TEACHER:
             if not teacher_can_manage_group(user, group):
-                raise PermissionDenied(
-                    "لا يمكنك إنشاء جلسة لمجموعة خارج نطاق تكليفاتك."
-                )
+                raise PermissionDenied("لا يمكنك إنشاء جلسة لمجموعة خارج نطاق تكليفاتك.")
             # Force teacher = caller (unless admin explicitly picks another).
             if "teacher" not in serializer.validated_data:
                 serializer.validated_data["teacher"] = user
@@ -184,9 +174,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
             return
         if user.role == User.Role.TEACHER:
             if not user_can(user, "teachers_can_mark_attendance"):
-                raise PermissionDenied(
-                    "إدارة الحضور غير مسموحة لك حسب إعدادات المؤسسة."
-                )
+                raise PermissionDenied("إدارة الحضور غير مسموحة لك حسب إعدادات المؤسسة.")
             if session.teacher_id == user.id:
                 return
             if teacher_can_manage_group(user, session.group):
@@ -226,9 +214,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        group = (
-            Group.objects.for_tenant(request.tenant).filter(id=group_id).first()
-        )
+        group = Group.objects.for_tenant(request.tenant).filter(id=group_id).first()
         if group is None:
             return Response(
                 {"error": {"status": 404, "detail": "المجموعة غير موجودة."}},
@@ -240,9 +226,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         user = request.user
         if user.role == User.Role.TEACHER:
             if not teacher_can_manage_group(user, group):
-                raise PermissionDenied(
-                    "لا يمكنك بدء جلسة لمجموعة خارج نطاق تكليفاتك."
-                )
+                raise PermissionDenied("لا يمكنك بدء جلسة لمجموعة خارج نطاق تكليفاتك.")
 
         today = dj_tz.localdate()
 
@@ -307,9 +291,11 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         if teacher is None:
             teacher_id = request.data.get("teacher")
             if teacher_id:
-                teacher = User.objects.for_tenant(request.tenant).filter(
-                    id=teacher_id, role=User.Role.TEACHER
-                ).first()
+                teacher = (
+                    User.objects.for_tenant(request.tenant)
+                    .filter(id=teacher_id, role=User.Role.TEACHER)
+                    .first()
+                )
             if teacher is None:
                 # Admin creating without specifying teacher: pick the first
                 # teacher assigned to this group, or fall back to error.
@@ -317,9 +303,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                     TeacherAssignment.objects.for_tenant(request.tenant)
                     .filter(
                         models.Q(groups=group)
-                        | models.Q(
-                            groups__isnull=True, course__grade=group.grade
-                        )
+                        | models.Q(groups__isnull=True, course__grade=group.grade)
                     )
                     .select_related("teacher")
                     .first()
@@ -347,9 +331,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
             start_time=start_obj,
             end_time=end_obj,
             mode=request.data.get("mode", AttendanceSession.Mode.HYBRID),
-            late_threshold_minutes=int(
-                request.data.get("late_threshold_minutes", 15) or 15
-            ),
+            late_threshold_minutes=int(request.data.get("late_threshold_minutes", 15) or 15),
             created_by=user,
         )
 
@@ -389,15 +371,12 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         """Live roster with each student's current status. Used by both
         the marking page and the read-only view for closed sessions."""
         session = self.get_object()
-        rows = (
-            session.records.select_related("student")
-            .order_by("student__first_name", "student__email")
+        rows = session.records.select_related("student").order_by(
+            "student__first_name", "student__email"
         )
         if request.user.role == "STUDENT":
             own_rows = rows.filter(student=request.user)
-            return Response(
-                StudentAttendanceRecordSerializer(own_rows, many=True).data
-            )
+            return Response(StudentAttendanceRecordSerializer(own_rows, many=True).data)
         if request.user.role in {"OWNER", "ADMIN", "TEACHER"}:
             return Response(AttendanceRecordSerializer(rows, many=True).data)
         return Response(
@@ -533,11 +512,15 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        enrolled = Enrollment.objects.for_tenant(request.tenant).filter(
-            student=student,
-            group=session.group,
-            status=Enrollment.Status.ACTIVE,
-        ).exists()
+        enrolled = (
+            Enrollment.objects.for_tenant(request.tenant)
+            .filter(
+                student=student,
+                group=session.group,
+                status=Enrollment.Status.ACTIVE,
+            )
+            .exists()
+        )
         if not enrolled:
             return Response(
                 {
@@ -561,10 +544,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
             AttendanceRecord.Status.LATE,
             AttendanceRecord.Status.EXCUSED,
         ):
-            full_name = (
-                f"{student.first_name} {student.last_name}".strip()
-                or student.email
-            )
+            full_name = f"{student.first_name} {student.last_name}".strip() or student.email
             return Response(
                 {
                     "student_id": str(student.id),
@@ -587,17 +567,12 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         )
 
         # Recompute PRESENT vs LATE if the arrival is past the threshold.
-        if (
-            record.status == AttendanceRecord.Status.PRESENT
-            and record.check_in_at
-        ):
+        if record.status == AttendanceRecord.Status.PRESENT and record.check_in_at:
             if record.check_in_at > _effective_late_boundary(session):
                 record.status = AttendanceRecord.Status.LATE
                 record.save(update_fields=["status", "updated_at"])
 
-        full_name = (
-            f"{student.first_name} {student.last_name}".strip() or student.email
-        )
+        full_name = f"{student.first_name} {student.last_name}".strip() or student.email
         return Response(
             {
                 "student_id": str(student.id),
@@ -648,12 +623,8 @@ class AttendanceSessionViewSet(YearAwareViewSet):
 
         user = request.user
         if user.role == User.Role.TEACHER:
-            assignments = TeacherAssignment.objects.for_tenant(
-                request.tenant
-            ).filter(teacher=user)
-            narrowed = assignments.filter(groups__isnull=False).values_list(
-                "groups__id", flat=True
-            )
+            assignments = TeacherAssignment.objects.for_tenant(request.tenant).filter(teacher=user)
+            narrowed = assignments.filter(groups__isnull=False).values_list("groups__id", flat=True)
             whole_grade = assignments.filter(groups__isnull=True).values_list(
                 "course__grade_id", flat=True
             )
@@ -668,9 +639,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         # Index today's existing sessions by group_id for O(1) lookup.
         existing_sessions = {
             s.group_id: s
-            for s in AttendanceSession.objects.for_tenant(request.tenant).filter(
-                date=today_date
-            )
+            for s in AttendanceSession.objects.for_tenant(request.tenant).filter(date=today_date)
         }
 
         now_local = dj_tz.localtime()
@@ -684,9 +653,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                 AttendanceSession.Status.CANCELLED,
             )
 
-            start_minutes = (
-                schedule.start_time.hour * 60 + schedule.start_time.minute
-            )
+            start_minutes = schedule.start_time.hour * 60 + schedule.start_time.minute
             starts_in = start_minutes - now_minutes
 
             # Batch 20.1: 4-state classification.
@@ -710,9 +677,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                     "group_name": schedule.group.name,
                     "start_time": schedule.start_time.strftime("%H:%M"),
                     "end_time": schedule.end_time.strftime("%H:%M"),
-                    "teacher_email": (
-                        schedule.teacher.email if schedule.teacher_id else None
-                    ),
+                    "teacher_email": (schedule.teacher.email if schedule.teacher_id else None),
                     "session_id": sess.id if sess else None,
                     "session_status": sess.status if sess else None,
                     "can_start": can_start,
@@ -776,9 +741,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         )
         now_local = dj_tz.localtime()
         now_minutes = now_local.hour * 60 + now_local.minute
-        start_minutes = (
-            schedule.start_time.hour * 60 + schedule.start_time.minute
-        )
+        start_minutes = schedule.start_time.hour * 60 + schedule.start_time.minute
         delta = start_minutes - now_minutes
 
         # Hard reject: >2h late, even with force. A 9 AM class started at
@@ -852,9 +815,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         # Teachers can only start sessions for groups they manage.
         if user.role == User.Role.TEACHER:
             if not teacher_can_manage_group(user, schedule.group):
-                raise PermissionDenied(
-                    "لا يمكنك بدء حصة لمجموعة خارج نطاق تكليفاتك."
-                )
+                raise PermissionDenied("لا يمكنك بدء حصة لمجموعة خارج نطاق تكليفاتك.")
 
         # Resolve teacher: schedule.teacher → caller (if teacher) → any
         # assigned teacher → error.
@@ -866,9 +827,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
                 TeacherAssignment.objects.for_tenant(request.tenant)
                 .filter(
                     models.Q(groups=schedule.group)
-                    | models.Q(
-                        groups__isnull=True, course__grade=schedule.group.grade
-                    )
+                    | models.Q(groups__isnull=True, course__grade=schedule.group.grade)
                 )
                 .select_related("teacher")
                 .first()
@@ -954,9 +913,7 @@ class AttendanceSessionViewSet(YearAwareViewSet):
         input_ser.is_valid(raise_exception=True)
         force = input_ser.validated_data["force"]
 
-        result = send_absence_notifications(
-            session, skip_already_notified=not force
-        )
+        result = send_absence_notifications(session, skip_already_notified=not force)
 
         log_action(
             actor=request.user,
@@ -1106,8 +1063,7 @@ class LookupStudentByCodeView(TenantContextMixin, APIView):
                     **base,
                     "found": False,
                     "hint": (
-                        "لا يوجد طالب بهذا الكود. تحقق من إعدادات الماسح "
-                        "أو جرّب مسح بطاقة أخرى."
+                        "لا يوجد طالب بهذا الكود. تحقق من إعدادات الماسح أو جرّب مسح بطاقة أخرى."
                     ),
                 }
             )
@@ -1118,10 +1074,7 @@ class LookupStudentByCodeView(TenantContextMixin, APIView):
                 "found": True,
                 "student": {
                     "id": str(student.id),
-                    "name": (
-                        f"{student.first_name} {student.last_name}".strip()
-                        or student.email
-                    ),
+                    "name": (f"{student.first_name} {student.last_name}".strip() or student.email),
                     "email": student.email,
                 },
             }

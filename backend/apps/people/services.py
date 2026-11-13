@@ -17,7 +17,6 @@ grade, different group/term.
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
-from apps.academics.models import Group, Term
 from apps.audit.services import log_action
 
 from .models import Enrollment
@@ -53,19 +52,13 @@ def transition_term(enrollment, target_term, target_group, *, user):
         )
 
     if enrollment.academic_year_id != target_term.academic_year_id:
-        raise ValidationError(
-            {"target_term": "الترم الهدف لا ينتمي لنفس السنة الدراسية."}
-        )
+        raise ValidationError({"target_term": "الترم الهدف لا ينتمي لنفس السنة الدراسية."})
 
     if target_term.id == enrollment.term_id:
-        raise ValidationError(
-            {"target_term": "الترم الهدف لا يمكن أن يكون نفس الترم الحالي."}
-        )
+        raise ValidationError({"target_term": "الترم الهدف لا يمكن أن يكون نفس الترم الحالي."})
 
     if target_group.academic_year_id != enrollment.academic_year_id:
-        raise ValidationError(
-            {"target_group": "المجموعة الهدف لا تنتمي لنفس السنة الدراسية."}
-        )
+        raise ValidationError({"target_group": "المجموعة الهدف لا تنتمي لنفس السنة الدراسية."})
 
     if target_group.grade_id != enrollment.group.grade_id:
         raise ValidationError(
@@ -83,8 +76,7 @@ def transition_term(enrollment, target_term, target_group, *, user):
         raise ValidationError(
             {
                 "target_group": (
-                    "المجموعة الهدف هي نفس المجموعة الحالية — "
-                    "نقل الترم يتطلب مجموعة مختلفة."
+                    "المجموعة الهدف هي نفس المجموعة الحالية — نقل الترم يتطلب مجموعة مختلفة."
                 )
             }
         )
@@ -102,12 +94,7 @@ def transition_term(enrollment, target_term, target_group, *, user):
     )
     if duplicate:
         raise ValidationError(
-            {
-                "target_term": (
-                    f"الطالب {enrollment.student.email} لديه تسجيل بالفعل "
-                    "في هذا الترم."
-                )
-            }
+            {"target_term": (f"الطالب {enrollment.student.email} لديه تسجيل بالفعل في هذا الترم.")}
         )
 
     # ---- Mark source as COMPLETED ----

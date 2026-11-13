@@ -26,13 +26,15 @@ Post-review fixes:
 
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.people.models import Enrollment
-from django.db import transaction
 from apps.common.utils import unique_copy_name
+from apps.people.models import Enrollment
+
 from .models import Assessment, AssessmentQuestion, AssessmentTarget
+
 
 def _current_enrollment(tenant, student):
     return (
@@ -136,9 +138,7 @@ def resolve_effective_window(assessment, student, now=None) -> dict:
             "closes_at": None,
             "latest_entry_at": None,
             "max_duration_if_started_now": (
-                assessment.duration_minutes * 60
-                if assessment.duration_minutes
-                else None
+                assessment.duration_minutes * 60 if assessment.duration_minutes else None
             ),
         }
 
@@ -197,9 +197,7 @@ def resolve_effective_window(assessment, student, now=None) -> dict:
     if assessment.duration_minutes:
         duration_seconds = assessment.duration_minutes * 60
         max_seconds = (
-            min(max_seconds, duration_seconds)
-            if max_seconds is not None
-            else duration_seconds
+            min(max_seconds, duration_seconds) if max_seconds is not None else duration_seconds
         )
 
     return {
@@ -260,10 +258,7 @@ def estimate_reach(assessment):
     # Any TENANT target means "everyone with at least one enrollment"
     if any(t.target_type == "TENANT" for t in targets):
         return (
-            Enrollment.objects.for_tenant(assessment.tenant)
-            .values("student_id")
-            .distinct()
-            .count()
+            Enrollment.objects.for_tenant(assessment.tenant).values("student_id").distinct().count()
         )
 
     q = Q()
@@ -363,6 +358,7 @@ def get_targeted_students(assessment):
 # Wave C1 — Duplicate assessment
 # ============================================================================
 
+
 def duplicate_assessment(assessment, actor):
     """Create a full copy of `assessment` as a new DRAFT owned by `actor`.
 
@@ -388,13 +384,10 @@ def duplicate_assessment(assessment, actor):
 
     Returns the new Assessment instance.
     """
-    from apps.common.utils import unique_copy_name
 
     new_title = unique_copy_name(
         assessment.title,
-        lambda name: Assessment.objects.for_tenant(assessment.tenant)
-        .filter(title=name)
-        .exists(),
+        lambda name: Assessment.objects.for_tenant(assessment.tenant).filter(title=name).exists(),
     )
 
     with transaction.atomic():

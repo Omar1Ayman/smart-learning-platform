@@ -12,7 +12,6 @@ from django.utils import timezone
 
 from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.exam_engine.models import ExamAttempt
-from apps.questions.models import Question
 
 from .conftest import login_as
 from .factories import (
@@ -22,7 +21,6 @@ from .factories import (
     QuestionBankFactory,
     QuestionFactory,
     StudentUserFactory,
-    TeacherUserFactory,
     TenantFactory,
     UserFactory,
 )
@@ -49,11 +47,12 @@ def _setup_student_with_assessment(*, max_attempts=2, allow_retakes=True, ends_i
     )
     bank = QuestionBankFactory(tenant=tenant)
     q = QuestionFactory(
-        bank=bank, tenant=tenant, approved=True, created_by=UserFactory(tenant=tenant, role="TEACHER")
+        bank=bank,
+        tenant=tenant,
+        approved=True,
+        created_by=UserFactory(tenant=tenant, role="TEACHER"),
     )
-    AssessmentQuestion.objects.create(
-        tenant=tenant, assessment=assessment, question=q, order=1
-    )
+    AssessmentQuestion.objects.create(tenant=tenant, assessment=assessment, question=q, order=1)
 
     if not allow_retakes:
         s = tenant.get_settings()
@@ -113,9 +112,7 @@ def test_can_retry_false_when_allow_retakes_off(api_client):
 
 
 def test_can_retry_false_when_window_closed(api_client):
-    tenant, student, assessment = _setup_student_with_assessment(
-        max_attempts=5, ends_in_days=-1
-    )
+    tenant, student, assessment = _setup_student_with_assessment(max_attempts=5, ends_in_days=-1)
     attempt = _make_graded_attempt(tenant, student, assessment, attempt_number=1)
 
     client = login_as(api_client, student)

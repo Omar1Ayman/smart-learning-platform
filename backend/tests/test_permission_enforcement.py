@@ -1,4 +1,5 @@
 import pytest
+
 from apps.assessments.models import AssessmentQuestion, AssessmentTarget
 from apps.content.models import Content
 from apps.exam_engine.services import start_attempt
@@ -74,9 +75,7 @@ def test_teacher_question_creation_paths_respect_permission(api_client):
     _set_permission(tenant, "teachers_can_create_questions", False)
     teacher = TeacherUserFactory(tenant=tenant)
     bank = QuestionBankFactory(tenant=tenant)
-    existing = QuestionFactory(
-        tenant=tenant, bank=bank, created_by=teacher, approved=True
-    )
+    existing = QuestionFactory(tenant=tenant, bank=bank, created_by=teacher, approved=True)
     client = login_as(api_client, teacher)
 
     created = client.post(
@@ -173,9 +172,7 @@ def test_assessment_result_export_requires_export_permission(api_client):
     assessment = AssessmentFactory(tenant=tenant)
     client = login_as(api_client, admin)
 
-    response = client.get(
-        f"/api/v1/assessments/{assessment.id}/export_results/"
-    )
+    response = client.get(f"/api/v1/assessments/{assessment.id}/export_results/")
 
     assert response.status_code == 403
 

@@ -7,6 +7,7 @@ from .views import (
     MeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    ProfileView,
     RevokeAllSessionsView,
     RevokeSessionView,
     TenantTokenObtainPairView,
@@ -15,7 +16,6 @@ from .views import (
     TwoFactorLoginView,
     TwoFactorSetupView,
     UserSessionsView,
-    ProfileView,
 )
 
 urlpatterns = [
@@ -39,5 +39,5 @@ urlpatterns = [
     path("sessions/", UserSessionsView.as_view(), name="user-sessions"),
     path("sessions/revoke-all/", RevokeAllSessionsView.as_view(), name="sessions-revoke-all"),
     path("sessions/<uuid:session_id>/revoke/", RevokeSessionView.as_view(), name="session-revoke"),
-        path("profile/", ProfileView.as_view(), name="user-profile"),
+    path("profile/", ProfileView.as_view(), name="user-profile"),
 ]

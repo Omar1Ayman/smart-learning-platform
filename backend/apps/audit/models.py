@@ -10,7 +10,11 @@ class AuditLog(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
-        "tenants.Tenant", null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_logs"
+        "tenants.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="audit_logs",
     )
     actor = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_logs"

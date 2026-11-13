@@ -12,14 +12,14 @@ from apps.academics.models import Chapter, Course, Lesson
 
 from .conftest import login_as
 from .factories import (
+    AcademicYearFactory,
     ChapterFactory,
     CourseFactory,
     GradeFactory,
     SubjectFactory,
     TenantFactory,
+    TermFactory,
     UserFactory,
-    AcademicYearFactory,
-    TermFactory
 )
 
 pytestmark = pytest.mark.django_db
@@ -45,6 +45,7 @@ def test_owner_can_create_course_with_own_tenants_subject_and_grade(api_client):
     )
     assert resp.status_code == 201, resp.data
 
+
 def test_course_cannot_reference_another_tenants_subject():
     tenant_a = TenantFactory()
     tenant_b = TenantFactory()
@@ -54,6 +55,7 @@ def test_course_cannot_reference_another_tenants_subject():
     year_a = AcademicYearFactory(tenant=tenant_a)  # ⬅️ جديد
 
     from rest_framework.test import APIClient
+
     client = login_as(APIClient(), owner_a)
     resp = client.post(
         "/api/v1/courses/",
@@ -66,6 +68,8 @@ def test_course_cannot_reference_another_tenants_subject():
         format="json",
     )
     assert resp.status_code == 400
+
+
 def test_chapter_order_is_unique_within_a_course():
     course = CourseFactory()
     ChapterFactory(course=course, tenant=course.tenant, order=1)
@@ -91,7 +95,9 @@ def test_student_cannot_create_lesson(api_client):
 
     client = login_as(api_client, student)
     resp = client.post(
-        "/api/v1/lessons/", {"chapter": str(chapter.id), "name": "Cell structure", "order": 1}, format="json"
+        "/api/v1/lessons/",
+        {"chapter": str(chapter.id), "name": "Cell structure", "order": 1},
+        format="json",
     )
     assert resp.status_code == 403
     assert Lesson.objects.count() == 0
@@ -113,7 +119,6 @@ def test_admin_cannot_create_lesson_in_draft_year(api_client):
     assert Lesson.objects.count() == 0
 
 
-
 def test_year_only_and_term_specific_courses_can_coexist(api_client):
     """ما قبل migration 0007 كان يسمح بـ generic (بلا year). الآن كل
     course له academic_year. لكن يمكن أن يكون له term أو لا."""
@@ -126,17 +131,30 @@ def test_year_only_and_term_specific_courses_can_coexist(api_client):
     client = login_as(api_client, owner)
 
     # year-only
-    r1 = client.post("/api/v1/courses/", {
-        "subject": str(subject.id), "grade": str(grade.id), "name": "Math",
-        "academic_year": str(year.id),
-    }, format="json")
+    r1 = client.post(
+        "/api/v1/courses/",
+        {
+            "subject": str(subject.id),
+            "grade": str(grade.id),
+            "name": "Math",
+            "academic_year": str(year.id),
+        },
+        format="json",
+    )
     assert r1.status_code == 201, r1.data
 
     # year + term
-    r2 = client.post("/api/v1/courses/", {
-        "subject": str(subject.id), "grade": str(grade.id), "name": "Math",
-        "academic_year": str(year.id), "term": str(term.id),
-    }, format="json")
+    r2 = client.post(
+        "/api/v1/courses/",
+        {
+            "subject": str(subject.id),
+            "grade": str(grade.id),
+            "name": "Math",
+            "academic_year": str(year.id),
+            "term": str(term.id),
+        },
+        format="json",
+    )
     assert r2.status_code == 201, r2.data
 
 
@@ -148,14 +166,25 @@ def test_cannot_duplicate_year_only_course(api_client):
     subject = SubjectFactory(tenant=tenant)
     grade = GradeFactory(tenant=tenant)
     Course.objects.create(
-        tenant=tenant, subject=subject, grade=grade, name="Math", academic_year=year,
+        tenant=tenant,
+        subject=subject,
+        grade=grade,
+        name="Math",
+        academic_year=year,
     )
     client = login_as(api_client, owner)
-    r = client.post("/api/v1/courses/", {
-        "subject": str(subject.id), "grade": str(grade.id), "name": "Math",
-        "academic_year": str(year.id),
-    }, format="json")
+    r = client.post(
+        "/api/v1/courses/",
+        {
+            "subject": str(subject.id),
+            "grade": str(grade.id),
+            "name": "Math",
+            "academic_year": str(year.id),
+        },
+        format="json",
+    )
     assert r.status_code == 400
+
 
 def test_patch_name_does_not_wipe_academic_year(api_client):
     """C-3 regression: PATCHing only `name` must keep `academic_year`/`term`."""
@@ -166,8 +195,12 @@ def test_patch_name_does_not_wipe_academic_year(api_client):
     subject = SubjectFactory(tenant=tenant)
     grade = GradeFactory(tenant=tenant)
     course = Course.objects.create(
-        tenant=tenant, subject=subject, grade=grade, name="Math",
-        academic_year=year, term=term,
+        tenant=tenant,
+        subject=subject,
+        grade=grade,
+        name="Math",
+        academic_year=year,
+        term=term,
     )
     client = login_as(api_client, owner)
     r = client.patch(f"/api/v1/courses/{course.id}/", {"name": "Math 101"}, format="json")

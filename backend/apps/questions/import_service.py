@@ -39,7 +39,6 @@ from apps.accounts.models import User
 
 from .models import Question, QuestionBank, QuestionOption
 
-
 MAX_IMPORT_BYTES = 10 * 1024 * 1024  # 10 MB — enough for ~50k rows CSV
 REQUIRED_HEADERS = {
     "bank_name",
@@ -110,9 +109,7 @@ def _read_csv(raw_bytes: bytes) -> list[dict]:
                 "تحقق من الفواصل داخل الخلايا. "
                 'استخدم علامات التنصيص "..." إذا احتجت لكتابة فاصلة داخل خلية.'
             )
-        rows.append(
-            {(k or "").strip().lower(): (v or "").strip() for k, v in r.items()}
-        )
+        rows.append({(k or "").strip().lower(): (v or "").strip() for k, v in r.items()})
     return rows
 
 
@@ -156,9 +153,7 @@ def _parse_options(raw: str) -> list[dict] | None:
 
     correct_count = sum(1 for p in parts if p.endswith("*"))
     if correct_count != 1:
-        raise ValueError(
-            f"يجب تحديد إجابة صحيحة واحدة بعلامة * (وُجد {correct_count})"
-        )
+        raise ValueError(f"يجب تحديد إجابة صحيحة واحدة بعلامة * (وُجد {correct_count})")
 
     options: list[dict] = []
     for i, p in enumerate(parts, 1):
@@ -184,10 +179,7 @@ def _parse_accepted(raw: str) -> list[str]:
 def validate_rows(tenant, rows: list[dict]) -> list[RowAnalysis]:
     """Validate every row independently and return per-row analysis."""
     analysis: list[RowAnalysis] = []
-    existing_banks = {
-        b.name.strip().lower(): b
-        for b in QuestionBank.objects.for_tenant(tenant)
-    }
+    existing_banks = {b.name.strip().lower(): b for b in QuestionBank.objects.for_tenant(tenant)}
 
     for idx, row in enumerate(rows, start=2):  # header = row 1
         bank_name = (row.get("bank_name") or "").strip()
@@ -234,9 +226,7 @@ def validate_rows(tenant, rows: list[dict]) -> list[RowAnalysis]:
                 if qtype == "TRUE_FALSE" and options is not None:
                     texts = {o["text"] for o in options}
                     if texts != TRUE_FALSE_CANONICAL:
-                        errors.append(
-                            "سؤال صح/خطأ يجب أن يكون خياراه بالضبط: 'صح' و 'خطأ'"
-                        )
+                        errors.append("سؤال صح/خطأ يجب أن يكون خياراه بالضبط: 'صح' و 'خطأ'")
 
                 if accepted_raw:
                     errors.append("هذا النوع لا يقبل accepted_answers")
@@ -318,8 +308,7 @@ def import_questions(tenant, analysis: list[RowAnalysis], author) -> dict:
 
     with transaction.atomic():
         bank_cache: dict[str, QuestionBank] = {
-            b.name.strip().lower(): b
-            for b in QuestionBank.objects.for_tenant(tenant)
+            b.name.strip().lower(): b for b in QuestionBank.objects.for_tenant(tenant)
         }
 
         for item in analysis:
@@ -407,9 +396,7 @@ def build_template_xlsx() -> io.BytesIO:
     ]
 
     header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(
-        start_color="2B3A67", end_color="2B3A67", fill_type="solid"
-    )
+    header_fill = PatternFill(start_color="2B3A67", end_color="2B3A67", fill_type="solid")
     center = Alignment(horizontal="center", vertical="center")
 
     for i, h in enumerate(headers, start=1):

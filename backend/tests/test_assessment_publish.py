@@ -6,7 +6,13 @@ import pytest
 from apps.assessments.models import Assessment, AssessmentQuestion, AssessmentTarget
 
 from .conftest import login_as
-from .factories import AssessmentFactory, GradeFactory, QuestionBankFactory, QuestionFactory, UserFactory
+from .factories import (
+    AssessmentFactory,
+    GradeFactory,
+    QuestionBankFactory,
+    QuestionFactory,
+    UserFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -44,7 +50,9 @@ def test_cannot_publish_without_any_targets(api_client):
     assessment = AssessmentFactory(tenant=owner.tenant)
     bank = QuestionBankFactory(tenant=owner.tenant)
     question = QuestionFactory(bank=bank, tenant=owner.tenant, approved=True)
-    AssessmentQuestion.objects.create(tenant=owner.tenant, assessment=assessment, question=question, order=1)
+    AssessmentQuestion.objects.create(
+        tenant=owner.tenant, assessment=assessment, question=question, order=1
+    )
 
     client = login_as(api_client, owner)
     resp = client.post(f"/api/v1/assessments/{assessment.id}/publish/")

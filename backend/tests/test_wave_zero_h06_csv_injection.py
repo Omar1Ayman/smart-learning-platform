@@ -5,6 +5,7 @@ executing as a formula when opened in Excel/Sheets. After fix: any cell
 starting with = + - @ TAB CR is prefixed with a single quote, forcing
 literal-text interpretation per OWASP guidance.
 """
+
 import io
 import zipfile
 

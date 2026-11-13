@@ -2,13 +2,11 @@
 
 import pytest
 
-from apps.accounts.models import User
-from apps.people.models import Enrollment, TeacherAssignment
+from apps.people.models import TeacherAssignment
 
 from .conftest import login_as
 from .factories import (
     AcademicYearFactory,
-    AssessmentFactory,
     CourseFactory,
     EnrollmentFactory,
     GradeFactory,
@@ -94,9 +92,7 @@ def test_enrollment_with_teacher_no_warning(api_client):
     owner = UserFactory(tenant=group.tenant, role="OWNER")
     teacher = TeacherUserFactory(tenant=group.tenant)
     course = CourseFactory(tenant=group.tenant, grade=group.grade)
-    ta = TeacherAssignment.objects.create(
-        tenant=group.tenant, teacher=teacher, course=course
-    )
+    ta = TeacherAssignment.objects.create(tenant=group.tenant, teacher=teacher, course=course)
     ta.groups.set([group])
     student = StudentUserFactory(tenant=group.tenant)
 
@@ -215,7 +211,6 @@ def test_setup_status_complete_when_required_steps_done(api_client):
         AcademicYearFactory,
         ChapterFactory,
         CourseFactory,
-        EnrollmentFactory,
         GradeFactory,
         GroupFactory,
         StageFactory,
@@ -233,14 +228,10 @@ def test_setup_status_complete_when_required_steps_done(api_client):
     course = CourseFactory(tenant=tenant, grade=grade, subject=subject)
     ChapterFactory(tenant=tenant, course=course)
     teacher = TeacherUserFactory(tenant=tenant)
-    ta = TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher, course=course
-    )
+    ta = TeacherAssignment.objects.create(tenant=tenant, teacher=teacher, course=course)
     ta.groups.set([group])
     student = StudentUserFactory(tenant=tenant)
-    EnrollmentFactory(
-        tenant=tenant, student=student, group=group, academic_year=year
-    )
+    EnrollmentFactory(tenant=tenant, student=student, group=group, academic_year=year)
 
     client = login_as(api_client, owner)
     r = client.get("/api/v1/setup-status/")

@@ -4,20 +4,21 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
 
-from apps.accounts.invitations import InvitationDeliveryError, send_account_invitation
+from apps.accounts.invitations import send_account_invitation
 from apps.tenants.permissions import user_can
 
 from .models import UserSession
 
 User = get_user_model()
 
+
 class MeTenantSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     name = serializers.CharField()
     slug = serializers.CharField()
-    primary_color = serializers.CharField()    
-    logo_url = serializers.CharField()         
-    contact_email = serializers.CharField()    
+    primary_color = serializers.CharField()
+    logo_url = serializers.CharField()
+    contact_email = serializers.CharField()
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -36,7 +37,7 @@ class MeSerializer(serializers.ModelSerializer):
             "can_view_audit_log",
             "is_platform_admin",
             "two_factor_enabled",
-            "student_code",   
+            "student_code",
         ]
         read_only_fields = fields
 
@@ -48,16 +49,17 @@ class MeSerializer(serializers.ModelSerializer):
             "id": str(t.id),
             "name": t.name,
             "slug": t.slug,
-            "primary_color": t.primary_color,       
-            "logo_url": t.logo_url,                 
-            "contact_email": t.contact_email,       
+            "primary_color": t.primary_color,
+            "logo_url": t.logo_url,
+            "contact_email": t.contact_email,
         }
 
     def get_can_view_audit_log(self, obj):
         return obj.role in (User.Role.OWNER, User.Role.ADMIN) or (
-            obj.role == User.Role.TEACHER
-            and user_can(obj, "enable_audit_log_for_teachers")
+            obj.role == User.Role.TEACHER and user_can(obj, "enable_audit_log_for_teachers")
         )
+
+
 class UserSerializer(serializers.ModelSerializer):
     """Read serializer for listing/retrieving tenant members — never
     exposes the password hash or any Django auth internals (SECURITY.md
@@ -66,10 +68,12 @@ class UserSerializer(serializers.ModelSerializer):
     `student_code` is included for STUDENT rows (null for staff). The
     attendance barcode printed on the student ID card uses this value.
     """
+
     assignments_count = serializers.SerializerMethodField()
     password_setup_pending = serializers.SerializerMethodField()
     current_grade_name = serializers.SerializerMethodField()
     current_group_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -79,11 +83,12 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "is_active",
-            "student_code",  
+            "student_code",
             "password_setup_pending",
             "created_at",
-            "assignments_count", 
-            "current_grade_name", "current_group_name",
+            "assignments_count",
+            "current_grade_name",
+            "current_group_name",
         ]
         read_only_fields = fields
 
@@ -94,23 +99,35 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.role != "STUDENT":
             return None
         from apps.people.models import Enrollment
+
         # نجلب التسجيل النشط فقط
-        enrollment = Enrollment.objects.filter(student=obj, status="ACTIVE").select_related('group__grade').first()
+        enrollment = (
+            Enrollment.objects.filter(student=obj, status="ACTIVE")
+            .select_related("group__grade")
+            .first()
+        )
         return enrollment.group.grade.name if enrollment and enrollment.group else None
 
     def get_current_group_name(self, obj):
         if obj.role != "STUDENT":
             return None
         from apps.people.models import Enrollment
-        enrollment = Enrollment.objects.filter(student=obj, status="ACTIVE").select_related('group').first()
+
+        enrollment = (
+            Enrollment.objects.filter(student=obj, status="ACTIVE").select_related("group").first()
+        )
         return enrollment.group.name if enrollment and enrollment.group else None
+
     def get_assignments_count(self, obj):
         # نحسب التكليفات فقط إذا كان المستخدم معلماً
         if obj.role != "TEACHER":
             return 0
-        
+
         from apps.people.models import TeacherAssignment
+
         return TeacherAssignment.objects.filter(teacher=obj).count()
+
+
 class UserCreateSerializer(serializers.ModelSerializer):
     """OWNER/ADMIN-only (enforced by the view's permission_classes, same
     IsAdminForWriteActions used everywhere else). Creates a TEACHER,
@@ -174,20 +191,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
             tenant = request.tenant
             if role == User.Role.STUDENT:
-                current = (
-                    User.objects.for_tenant(tenant)
-                    .filter(role=User.Role.STUDENT)
-                    .count()
-                )
+                current = User.objects.for_tenant(tenant).filter(role=User.Role.STUDENT).count()
                 require_within_limit(tenant, "max_students", current)
             elif role == User.Role.TEACHER:
-                current = (
-                    User.objects.for_tenant(tenant)
-                    .filter(role=User.Role.TEACHER)
-                    .count()
-                )
+                current = User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER).count()
                 require_within_limit(tenant, "max_teachers", current)
         return attrs
+
     def create(self, validated_data):
         request = self.context["request"]
         with transaction.atomic():
@@ -198,6 +208,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             )
             send_account_invitation(user)
         return user
+
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Limited field set by design.
@@ -248,13 +259,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             )
             if has_parent_update and self.instance.role != User.Role.STUDENT:
                 raise serializers.ValidationError(
-                    {
-                        "parent_email": (
-                            "بيانات ولي الأمر متاحة للطلاب فقط (role=STUDENT)."
-                        )
-                    }
+                    {"parent_email": ("بيانات ولي الأمر متاحة للطلاب فقط (role=STUDENT).")}
                 )
         return attrs
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     """Step 1: request a reset link. Deliberately does NOT reveal whether
     the email exists — same response either way, so an attacker cannot
@@ -426,7 +435,7 @@ class StudentDetailSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "tenant_name",
-            "student_code", 
+            "student_code",
             "current_enrollment",
             "attempts_summary",
             "recent_attempts",
@@ -557,7 +566,9 @@ class TeacherDetailSerializer(serializers.ModelSerializer):
                 "subject_name": a.course.subject.name,
                 "grade_name": a.course.grade.name,
                 "group_names": [g.name for g in a.groups.all()],
-                "scope_label": "الصف كامل" if not a.groups.exists() else f"{a.groups.count()} مجموعة",
+                "scope_label": "الصف كامل"
+                if not a.groups.exists()
+                else f"{a.groups.count()} مجموعة",
             }
             for a in qs
         ]
@@ -578,9 +589,7 @@ class TeacherDetailSerializer(serializers.ModelSerializer):
         students_qs = (
             Enrollment.objects.for_tenant(obj.tenant)
             .filter(status="ACTIVE")
-            .filter(
-                Q(group_id__in=narrowed_group_ids) | Q(group__grade_id__in=whole_grade_ids)
-            )
+            .filter(Q(group_id__in=narrowed_group_ids) | Q(group__grade_id__in=whole_grade_ids))
             .values("student_id")
             .distinct()
         )

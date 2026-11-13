@@ -15,11 +15,9 @@ from typing import TYPE_CHECKING
 
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
-from .exceptions import LimitReached
-from .models import Plan, Subscription, SubscriptionEvent
-
 
 from .constants import all_feature_keys, all_limit_keys
+from .exceptions import LimitReached
 from .models import Plan, Subscription, SubscriptionEvent
 
 if TYPE_CHECKING:
@@ -34,7 +32,7 @@ DEFAULT_PLAN_KEY = "free"
 # ============================================================================
 
 
-def get_active_subscription(tenant: "Tenant") -> Subscription | None:
+def get_active_subscription(tenant: Tenant) -> Subscription | None:
     """Return the tenant's subscription, or None if not subscribed yet."""
     try:
         return tenant.subscription
@@ -42,7 +40,7 @@ def get_active_subscription(tenant: "Tenant") -> Subscription | None:
         return None
 
 
-def get_plan_for_tenant(tenant: "Tenant") -> Plan | None:
+def get_plan_for_tenant(tenant: Tenant) -> Plan | None:
     """Return the plan the tenant is currently on.
 
     Order of precedence:
@@ -60,7 +58,7 @@ def get_plan_for_tenant(tenant: "Tenant") -> Plan | None:
 # ============================================================================
 
 
-def has_feature(tenant: "Tenant", feature_key: str) -> bool:
+def has_feature(tenant: Tenant, feature_key: str) -> bool:
     """Return True if the tenant has this feature."""
     sub = get_active_subscription(tenant)
     if sub and feature_key in sub.feature_overrides:
@@ -72,7 +70,7 @@ def has_feature(tenant: "Tenant", feature_key: str) -> bool:
     return plan.has_feature(feature_key)
 
 
-def require_feature(tenant: "Tenant", feature_key: str) -> None:
+def require_feature(tenant: Tenant, feature_key: str) -> None:
     """Raise 403 PermissionDenied if tenant lacks feature.
 
     Uses a plain string detail so `custom_exception_handler` produces
@@ -80,12 +78,10 @@ def require_feature(tenant: "Tenant", feature_key: str) -> None:
     envelope (not a nested dict).
     """
     if not has_feature(tenant, feature_key):
-        raise PermissionDenied(
-            "هذه الميزة غير متاحة في باقتك الحالية. "
-            "قم بالترقية للوصول إليها."
-        )
+        raise PermissionDenied("هذه الميزة غير متاحة في باقتك الحالية. قم بالترقية للوصول إليها.")
 
-def get_features_dict(tenant: "Tenant") -> dict[str, bool]:
+
+def get_features_dict(tenant: Tenant) -> dict[str, bool]:
     """Return {feature_key: bool} for ALL canonical features."""
     return {key: has_feature(tenant, key) for key in all_feature_keys()}
 
@@ -95,7 +91,7 @@ def get_features_dict(tenant: "Tenant") -> dict[str, bool]:
 # ============================================================================
 
 
-def get_limit(tenant: "Tenant", limit_key: str) -> int | None:
+def get_limit(tenant: Tenant, limit_key: str) -> int | None:
     """Return the numeric limit. None = unlimited."""
     sub = get_active_subscription(tenant)
     if sub and limit_key in sub.limit_overrides:
@@ -109,24 +105,19 @@ def get_limit(tenant: "Tenant", limit_key: str) -> int | None:
     return int(val) if val is not None else None
 
 
-def is_within_limit(
-    tenant: "Tenant", limit_key: str, current_value: int
-) -> tuple[bool, str | None]:
+def is_within_limit(tenant: Tenant, limit_key: str, current_value: int) -> tuple[bool, str | None]:
     """Return (allowed, error_message)."""
     limit = get_limit(tenant, limit_key)
     if limit is None:
         return True, None
     if current_value >= limit:
         return False, (
-            f"وصلت للحد الأقصى المسموح في باقتك الحالية ({limit}). "
-            "قم بالترقية لإضافة المزيد."
+            f"وصلت للحد الأقصى المسموح في باقتك الحالية ({limit}). قم بالترقية لإضافة المزيد."
         )
     return True, None
 
 
-def require_within_limit(
-    tenant: "Tenant", limit_key: str, current_value: int
-) -> None:
+def require_within_limit(tenant: Tenant, limit_key: str, current_value: int) -> None:
     """Raise 402 LimitReached if adding one more would exceed the limit.
 
     Distinct from ValidationError (400) so the frontend can show an
@@ -135,12 +126,14 @@ def require_within_limit(
     allowed, message = is_within_limit(tenant, limit_key, current_value)
     if not allowed:
         raise LimitReached(message or LimitReached.default_detail)
+
+
 # ============================================================================
 # Usage tracking
 # ============================================================================
 
 
-def get_usage(tenant: "Tenant") -> dict[str, dict]:
+def get_usage(tenant: Tenant) -> dict[str, dict]:
     """Return current usage for each limited resource.
 
     Shape: {limit_key: {"current": int, "max": int|None, "unit": str}}
@@ -149,34 +142,24 @@ def get_usage(tenant: "Tenant") -> dict[str, dict]:
     from apps.accounts.models import User
     from apps.assessments.models import Assessment
     from apps.content.models import Content
+
     from .constants import LIMITS
 
     # Students / teachers
-    student_count = (
-        User.objects.for_tenant(tenant).filter(role=User.Role.STUDENT).count()
-    )
-    teacher_count = (
-        User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER).count()
-    )
+    student_count = User.objects.for_tenant(tenant).filter(role=User.Role.STUDENT).count()
+    teacher_count = User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER).count()
 
     # Assessments this calendar month
     now = timezone.now()
-    month_start = now.replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     assessments_this_month = (
-        Assessment.objects.for_tenant(tenant)
-        .filter(created_at__gte=month_start)
-        .count()
+        Assessment.objects.for_tenant(tenant).filter(created_at__gte=month_start).count()
     )
 
     # Storage — sum of actual file sizes (best-effort; missing files skipped)
     total_bytes = 0
     for c in (
-        Content.objects.for_tenant(tenant)
-        .filter(file__isnull=False)
-        .exclude(file="")
-        .only("file")
+        Content.objects.for_tenant(tenant).filter(file__isnull=False).exclude(file="").only("file")
     ):
         try:
             total_bytes += c.file.size
@@ -213,7 +196,7 @@ def get_usage(tenant: "Tenant") -> dict[str, dict]:
 # ============================================================================
 
 
-def get_plan_summary(tenant: "Tenant") -> dict:
+def get_plan_summary(tenant: Tenant) -> dict:
     """Complete billing picture for the current tenant.
 
     Works with or without a Subscription row:
@@ -240,11 +223,7 @@ def get_plan_summary(tenant: "Tenant") -> dict:
             "ends_at": sub.trial_end.isoformat() if sub.trial_end else None,
         }
         cancel_at_period_end = sub.cancel_at_period_end
-        current_period_end = (
-            sub.current_period_end.isoformat()
-            if sub.current_period_end
-            else None
-        )
+        current_period_end = sub.current_period_end.isoformat() if sub.current_period_end else None
 
     return {
         "plan": plan,
@@ -254,9 +233,7 @@ def get_plan_summary(tenant: "Tenant") -> dict:
         "cancel_at_period_end": cancel_at_period_end,
         "current_period_end": current_period_end,
         "features": get_features_dict(tenant),
-        "limits": {
-            key: get_limit(tenant, key) for key in all_limit_keys()
-        },
+        "limits": {key: get_limit(tenant, key) for key in all_limit_keys()},
     }
 
 
@@ -266,7 +243,7 @@ def get_plan_summary(tenant: "Tenant") -> dict:
 
 
 def assign_plan(
-    tenant: "Tenant",
+    tenant: Tenant,
     plan_key: str,
     *,
     status: str = Subscription.Status.ACTIVE,

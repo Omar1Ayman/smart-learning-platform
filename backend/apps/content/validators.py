@@ -85,9 +85,7 @@ def validate_uploaded_file(
 
     # Real content sniffing — fail closed if libmagic is unavailable.
     if not _HAS_MAGIC:
-        raise ValidationError(
-            "فحص محتوى الملفات غير متاح على الخادم حاليًا. الرفع معطّل مؤقتًا."
-        )
+        raise ValidationError("فحص محتوى الملفات غير متاح على الخادم حاليًا. الرفع معطّل مؤقتًا.")
     head = uploaded_file.read(4096)
     uploaded_file.seek(0)
     sniffed_mime = magic.from_buffer(head, mime=True)

@@ -25,7 +25,9 @@ def _promote(client, target_year, items, dry_run=False):
 def test_dry_run_validates_but_creates_nothing(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -36,7 +38,13 @@ def test_dry_run_validates_but_creates_nothing(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
         dry_run=True,
     )
     assert resp.status_code == 200, resp.data
@@ -47,7 +55,9 @@ def test_dry_run_validates_but_creates_nothing(api_client):
 def test_promote_creates_new_enrollment_and_keeps_the_old_one(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -57,7 +67,13 @@ def test_promote_creates_new_enrollment_and_keeps_the_old_one(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 201, resp.data
 
@@ -106,7 +122,9 @@ def test_retrying_promotion_does_not_create_a_duplicate_enrollment(api_client):
 def test_graduate_marks_status_without_creating_a_new_enrollment(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -124,7 +142,9 @@ def test_graduate_marks_status_without_creating_a_new_enrollment(api_client):
 def test_transfer_marks_old_enrollment_transferred(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -134,7 +154,13 @@ def test_transfer_marks_old_enrollment_transferred(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "TRANSFER", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "TRANSFER",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 201, resp.data
     enrollment.refresh_from_db()
@@ -144,21 +170,32 @@ def test_transfer_marks_old_enrollment_transferred(api_client):
 def test_rejects_when_student_already_has_an_enrollment_in_target_year(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
     target_group = GroupFactory(grade=group.grade, academic_year=target_year, tenant=group.tenant)
     # student already has *some* enrollment in the target year
     EnrollmentFactory(
-        student=enrollment.student, group=target_group, tenant=group.tenant, academic_year=target_year
+        student=enrollment.student,
+        group=target_group,
+        tenant=group.tenant,
+        academic_year=target_year,
     )
 
     client = login_as(api_client, owner)
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 400
 
@@ -169,15 +206,22 @@ def test_one_bad_item_rolls_back_the_whole_batch(api_client):
     not just skip the bad one."""
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    good_enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
-    bad_enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    good_enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
+    bad_enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
     target_group = GroupFactory(grade=group.grade, academic_year=target_year, tenant=group.tenant)
     # bad_enrollment's student already has a target-year enrollment -> invalid
     EnrollmentFactory(
-        student=bad_enrollment.student, group=target_group, tenant=group.tenant, academic_year=target_year
+        student=bad_enrollment.student,
+        group=target_group,
+        tenant=group.tenant,
+        academic_year=target_year,
     )
 
     client = login_as(api_client, owner)
@@ -191,7 +235,11 @@ def test_one_bad_item_rolls_back_the_whole_batch(api_client):
                 "action": "PROMOTE",
                 "target_group": str(target_group.id),
             },
-            {"enrollment": str(bad_enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)},
+            {
+                "enrollment": str(bad_enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            },
         ],
     )
     assert resp.status_code == 400
@@ -200,7 +248,9 @@ def test_one_bad_item_rolls_back_the_whole_batch(api_client):
 
 def test_student_cannot_call_promote(api_client):
     group = GroupFactory()
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -217,9 +267,7 @@ def test_promotion_requires_active_target_year(api_client):
         group=group, tenant=group.tenant, academic_year=group.academic_year
     )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
-    target_group = GroupFactory(
-        grade=group.grade, academic_year=target_year, tenant=group.tenant
-    )
+    target_group = GroupFactory(grade=group.grade, academic_year=target_year, tenant=group.tenant)
 
     client = login_as(api_client, owner)
     resp = _promote(
@@ -265,7 +313,9 @@ def test_promotion_cannot_change_archived_source_enrollment(api_client):
 def test_promote_marks_old_enrollment_completed(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -275,7 +325,13 @@ def test_promote_marks_old_enrollment_completed(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 201, resp.data
     enrollment.refresh_from_db()
@@ -285,7 +341,9 @@ def test_promote_marks_old_enrollment_completed(api_client):
 def test_repeat_marks_old_enrollment_completed(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
     group.academic_year.activate()
     target_year.activate()
@@ -295,7 +353,13 @@ def test_repeat_marks_old_enrollment_completed(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "REPEAT", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "REPEAT",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 201, resp.data
     enrollment.refresh_from_db()
@@ -305,7 +369,9 @@ def test_repeat_marks_old_enrollment_completed(api_client):
 def test_cannot_promote_an_already_graduated_enrollment(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     enrollment.status = Enrollment.Status.GRADUATED
     enrollment.save(update_fields=["status"])
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
@@ -317,7 +383,13 @@ def test_cannot_promote_an_already_graduated_enrollment(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 400
 
@@ -325,7 +397,9 @@ def test_cannot_promote_an_already_graduated_enrollment(api_client):
 def test_cannot_promote_a_suspended_enrollment(api_client):
     group = GroupFactory()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
-    enrollment = EnrollmentFactory(group=group, tenant=group.tenant, academic_year=group.academic_year)
+    enrollment = EnrollmentFactory(
+        group=group, tenant=group.tenant, academic_year=group.academic_year
+    )
     enrollment.status = Enrollment.Status.SUSPENDED
     enrollment.save(update_fields=["status"])
     target_year = AcademicYearFactory(tenant=group.tenant, name="Next Year")
@@ -337,6 +411,12 @@ def test_cannot_promote_a_suspended_enrollment(api_client):
     resp = _promote(
         client,
         target_year,
-        [{"enrollment": str(enrollment.id), "action": "PROMOTE", "target_group": str(target_group.id)}],
+        [
+            {
+                "enrollment": str(enrollment.id),
+                "action": "PROMOTE",
+                "target_group": str(target_group.id),
+            }
+        ],
     )
     assert resp.status_code == 400

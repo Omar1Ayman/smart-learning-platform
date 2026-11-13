@@ -22,20 +22,34 @@ class AssessmentSerializer(TenantScopedModelSerializer):
     questions_count = serializers.SerializerMethodField()
     attempts_count = serializers.SerializerMethodField()
     submissions_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Assessment
         fields = [
-            "id", "title", "description", "assessment_type", "status",
-            "starts_at", "ends_at", "duration_minutes", "max_attempts",
-            "passing_score", "published_at",
-            "randomize_question_order", "randomize_option_order",
+            "id",
+            "title",
+            "description",
+            "assessment_type",
+            "status",
+            "starts_at",
+            "ends_at",
+            "duration_minutes",
+            "max_attempts",
+            "passing_score",
+            "published_at",
+            "randomize_question_order",
+            "randomize_option_order",
             "question_count",
             "late_entry_minutes",
             "entry_cutoff_minutes",
-            "created_by", "created_by_email", "targets_summary",
-            "questions_count", "attempts_count", "submissions_count",
-            "created_at", "updated_at",
+            "created_by",
+            "created_by_email",
+            "targets_summary",
+            "questions_count",
+            "attempts_count",
+            "submissions_count",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = [
             "id",
@@ -50,7 +64,7 @@ class AssessmentSerializer(TenantScopedModelSerializer):
             "created_at",
             "updated_at",
         ]
-    
+
     def validate_late_entry_minutes(self, value):
         if value is not None and value < 0:
             raise serializers.ValidationError("يجب أن يكون 0 أو أكثر.")
@@ -60,6 +74,7 @@ class AssessmentSerializer(TenantScopedModelSerializer):
         if value is not None and value < 0:
             raise serializers.ValidationError("يجب أن يكون 0 أو أكثر.")
         return value
+
     def validate_duration_minutes(self, value):
         """M12 fix: reject `duration_minutes=0`.
 
@@ -74,6 +89,7 @@ class AssessmentSerializer(TenantScopedModelSerializer):
                 "المدة يجب أن تكون أكبر من صفر، أو اتركها فارغة لامتحان بلا حد زمني."
             )
         return value
+
     def get_created_by_email(self, obj):
         return obj.created_by.email if obj.created_by_id else None
 
@@ -98,10 +114,7 @@ class AssessmentSerializer(TenantScopedModelSerializer):
             elif t.target_type == AssessmentTarget.TargetType.GROUP and t.group:
                 summaries.append(f"مجموعة: {t.group.name}")
             elif t.target_type == AssessmentTarget.TargetType.STUDENT and t.student:
-                name = (
-                    f"{t.student.first_name} {t.student.last_name}".strip()
-                    or t.student.email
-                )
+                name = f"{t.student.first_name} {t.student.last_name}".strip() or t.student.email
                 summaries.append(f"طالب: {name}")
         return summaries
 
@@ -117,6 +130,8 @@ class AssessmentSerializer(TenantScopedModelSerializer):
     def create(self, validated_data):
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
+
+
 class AssessmentForStudentSerializer(serializers.ModelSerializer):
     """What a targeted student sees in the assessments list.
 
@@ -130,6 +145,7 @@ class AssessmentForStudentSerializer(serializers.ModelSerializer):
     has_in_progress_attempt = serializers.SerializerMethodField()
     force_fullscreen = serializers.SerializerMethodField()
     window = serializers.SerializerMethodField()
+
     class Meta:
         model = Assessment
         fields = [
@@ -140,8 +156,8 @@ class AssessmentForStudentSerializer(serializers.ModelSerializer):
             "starts_at",
             "ends_at",
             "duration_minutes",
-            "late_entry_minutes",      
-            "entry_cutoff_minutes",    
+            "late_entry_minutes",
+            "entry_cutoff_minutes",
             "max_attempts",
             "passing_score",
             "my_attempts_used",
@@ -150,6 +166,7 @@ class AssessmentForStudentSerializer(serializers.ModelSerializer):
             "window",
         ]
         read_only_fields = fields
+
     def get_window(self, obj):
         from .services import resolve_effective_window
 
@@ -163,11 +180,10 @@ class AssessmentForStudentSerializer(serializers.ModelSerializer):
             "reason": w["reason"],
             "opens_at": w["opens_at"].isoformat() if w["opens_at"] else None,
             "closes_at": w["closes_at"].isoformat() if w["closes_at"] else None,
-            "latest_entry_at": (
-                w["latest_entry_at"].isoformat() if w["latest_entry_at"] else None
-            ),
+            "latest_entry_at": (w["latest_entry_at"].isoformat() if w["latest_entry_at"] else None),
             "max_duration_if_started_now": w["max_duration_if_started_now"],
         }
+
     def _attempts(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
@@ -189,7 +205,9 @@ class AssessmentForStudentSerializer(serializers.ModelSerializer):
         return qs.filter(status="IN_PROGRESS").exists()
 
     def get_force_fullscreen(self, obj) -> bool:
-        return bool(obj.tenant.get_policy("exam_policy").get("force_fullscreen", False)) 
+        return bool(obj.tenant.get_policy("exam_policy").get("force_fullscreen", False))
+
+
 class AssessmentQuestionSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"assessment": Assessment, "question": Question}
 
@@ -217,7 +235,18 @@ class AssessmentTargetSerializer(TenantScopedModelSerializer):
 
     class Meta:
         model = AssessmentTarget
-        fields = ["id","assessment", "target_type", "stage", "grade", "group", "student", "opens_at","closes_at","created_at"]
+        fields = [
+            "id",
+            "assessment",
+            "target_type",
+            "stage",
+            "grade",
+            "group",
+            "student",
+            "opens_at",
+            "closes_at",
+            "created_at",
+        ]
         read_only_fields = ["id", "created_at"]
 
     def validate(self, attrs):

@@ -94,9 +94,7 @@ class PlatformTenantViewSet(viewsets.ModelViewSet):
         return qs.order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
-        serializer = CreateTenantSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = CreateTenantSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
         return Response(
@@ -138,9 +136,7 @@ class PlatformTenantViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = ResetOwnerPasswordSerializer(
-            data=request.data, context={"owner": owner}
-        )
+        serializer = ResetOwnerPasswordSerializer(data=request.data, context={"owner": owner})
         serializer.is_valid(raise_exception=True)
 
         owner.set_password(serializer.validated_data["new_password"])
@@ -346,9 +342,7 @@ class PlatformBillingTenantViewSet(viewsets.ReadOnlyModelViewSet):
                     or subscription.trial_end is None
                 ):
                     subscription.trial_start = now
-                    subscription.trial_end = now + timedelta(
-                        days=values.get("trial_days", 14)
-                    )
+                    subscription.trial_end = now + timedelta(days=values.get("trial_days", 14))
                     updated_fields.update({"trial_start", "trial_end"})
                 subscription.canceled_at = None
                 subscription.cancel_at_period_end = False
@@ -379,9 +373,7 @@ class PlatformBillingTenantViewSet(viewsets.ReadOnlyModelViewSet):
         )
         tenant.refresh_from_db()
         return Response(
-            PlatformBillingTenantSerializer(
-                tenant, context=self.get_serializer_context()
-            ).data
+            PlatformBillingTenantSerializer(tenant, context=self.get_serializer_context()).data
         )
 
 
@@ -420,9 +412,7 @@ class PlatformMetricsView(APIView):
             for row in Tenant.objects.values("status").annotate(count=Count("id"))
         }
         total_users = User.objects.filter(tenant__isnull=False).count()
-        demo_requests_new = DemoRequest.objects.filter(
-            status=DemoRequest.Status.NEW
-        ).count()
+        demo_requests_new = DemoRequest.objects.filter(status=DemoRequest.Status.NEW).count()
 
         # ---- Exam-level metrics ----
         now = timezone.now()
@@ -438,9 +428,7 @@ class PlatformMetricsView(APIView):
             expires_at__gt=now,
         ).count()
 
-        pending_grading = ExamAttempt.objects.filter(
-            status=ExamAttempt.Status.SUBMITTED
-        ).count()
+        pending_grading = ExamAttempt.objects.filter(status=ExamAttempt.Status.SUBMITTED).count()
 
         submissions_this_week = ExamAttempt.objects.filter(
             submitted_at__gte=week_ago,

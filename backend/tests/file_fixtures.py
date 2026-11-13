@@ -7,7 +7,7 @@ import io
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
-MINIMAL_PDF_BYTES = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n" b"trailer<</Root 1 0 R>>\n%%EOF"
+MINIMAL_PDF_BYTES = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"
 
 
 def make_pdf(name="lesson.pdf"):

@@ -5,11 +5,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from apps.tenants.permissions import CanExportTenant, CanImportStudents
+
 from apps.academics.models import AcademicYear
 from apps.audit.services import log_action
 from apps.common.mixins import TenantContextMixin
 from apps.common.permissions import IsTenantMember
+from apps.tenants.permissions import CanExportTenant, CanImportStudents
 
 from .services import (
     MAX_IMPORT_BYTES,
@@ -74,6 +75,7 @@ class StudentImportView(TenantContextMixin, APIView):
 
     def post(self, request):
         from apps.billing.services import require_feature
+
         require_feature(request.tenant, "bulk_import")
         upload = request.FILES.get("file")
         academic_year_id = request.data.get("academic_year")

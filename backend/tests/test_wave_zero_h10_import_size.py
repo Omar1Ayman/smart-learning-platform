@@ -10,6 +10,7 @@ exercise the CUSTOM check (not Django's default), we raise that limit
 via @override_settings. In production, the custom check is
 defense-in-depth on top of Django's own gate.
 """
+
 import io
 
 import pytest

@@ -18,19 +18,38 @@ TRUE_FALSE_TEXTS = {"صح", "خطأ"}
 
 class QuestionBankSerializer(TenantScopedModelSerializer):
     tenant_scoped_fields = {"subject": Subject, "grade": Grade}
-    questions_count = serializers.IntegerField(source='questions.count', read_only=True)
+    questions_count = serializers.IntegerField(source="questions.count", read_only=True)
     created_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = QuestionBank
         fields = [
-            "id", "name", "description", "subject", "grade", "is_archived",
-            "created_by", "created_by_name", "questions_count", "created_at", "updated_at",
+            "id",
+            "name",
+            "description",
+            "subject",
+            "grade",
+            "is_archived",
+            "created_by",
+            "created_by_name",
+            "questions_count",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "created_by_name", "questions_count", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "created_by",
+            "created_by_name",
+            "questions_count",
+            "created_at",
+            "updated_at",
+        ]
+
     def get_created_by_name(self, obj):
         if not obj.created_by:
             return "غير معروف"
         return obj.created_by.get_full_name() or obj.created_by.email.split("@")[0]
+
     def create(self, validated_data):
         validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
@@ -83,9 +102,7 @@ class QuestionSerializer(TenantScopedModelSerializer):
         ]
 
     def validate(self, attrs):
-        question_type = attrs.get("question_type") or getattr(
-            self.instance, "question_type", None
-        )
+        question_type = attrs.get("question_type") or getattr(self.instance, "question_type", None)
         options = attrs.get("options")
         options_submitted = "options" in self.initial_data
         accepted_answers = (
@@ -101,9 +118,7 @@ class QuestionSerializer(TenantScopedModelSerializer):
                     {"options": "options مطلوبة لهذا النوع من الأسئلة."}
                 )
             if len(effective_options) < 2:
-                raise serializers.ValidationError(
-                    {"options": "مطلوب اختياران على الأقل."}
-                )
+                raise serializers.ValidationError({"options": "مطلوب اختياران على الأقل."})
             correct_count = sum(1 for opt in effective_options if opt.get("is_correct"))
             if correct_count != 1:
                 raise serializers.ValidationError(
@@ -128,11 +143,7 @@ class QuestionSerializer(TenantScopedModelSerializer):
         elif question_type == Question.QuestionType.SHORT_ANSWER:
             if not accepted_answers:
                 raise serializers.ValidationError(
-                    {
-                        "accepted_answers": (
-                            "مطلوبة (قائمة إجابات مقبولة) لهذا النوع من الأسئلة."
-                        )
-                    }
+                    {"accepted_answers": ("مطلوبة (قائمة إجابات مقبولة) لهذا النوع من الأسئلة.")}
                 )
         # ESSAY: no options, no accepted_answers required — graded manually.
         return attrs
@@ -176,9 +187,7 @@ class QuestionSerializer(TenantScopedModelSerializer):
 
         question = super().create(validated_data)
         for option in options_data:
-            QuestionOption.objects.create(
-                tenant=question.tenant, question=question, **option
-            )
+            QuestionOption.objects.create(tenant=question.tenant, question=question, **option)
 
         if question.review_status == Question.ReviewStatus.PENDING:
             from apps.notifications.services import notify_many
@@ -228,18 +237,11 @@ class QuestionSerializer(TenantScopedModelSerializer):
         # (a typo fix in question text often flips صح↔خطأ). The check in
         # validate() already guarantees both texts are present; this
         # block is redundant but explicit for future readers.
-        if (
-            instance.question_type == Question.QuestionType.TRUE_FALSE
-            and options_data is not None
-        ):
+        if instance.question_type == Question.QuestionType.TRUE_FALSE and options_data is not None:
             texts = {(o.get("text") or "").strip() for o in options_data}
             if texts != TRUE_FALSE_TEXTS:
                 raise serializers.ValidationError(
-                    {
-                        "options": (
-                            "خيارات سؤال صح/خطأ ثابتة: 'صح' و 'خطأ' — لا يتغيّر النص."
-                        )
-                    }
+                    {"options": ("خيارات سؤال صح/خطأ ثابتة: 'صح' و 'خطأ' — لا يتغيّر النص.")}
                 )
 
         # Editing an approved question sends it back for re-review.
@@ -253,7 +255,5 @@ class QuestionSerializer(TenantScopedModelSerializer):
         if options_data is not None:
             question.options.all().delete()
             for option in options_data:
-                QuestionOption.objects.create(
-                    tenant=question.tenant, question=question, **option
-                )
+                QuestionOption.objects.create(tenant=question.tenant, question=question, **option)
         return question

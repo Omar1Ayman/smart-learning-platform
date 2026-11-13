@@ -47,7 +47,6 @@ class TeacherAssignment(TenantScopedModel):
         return f"{self.teacher.email} — {self.course.name}"
 
 
-
 class Enrollment(TenantScopedModel):
     """A student's placement in one Group for one AcademicYear (or one
     Term within it), never overwritten across years (spec #23).
@@ -120,6 +119,4 @@ class Enrollment(TenantScopedModel):
         from django.core.exceptions import ValidationError
 
         if self.term_id and self.term.academic_year_id != self.academic_year_id:
-            raise ValidationError(
-                {"term": "الترم المختار لا ينتمي للسنة الدراسية المحددة."}
-            )
+            raise ValidationError({"term": "الترم المختار لا ينتمي للسنة الدراسية المحددة."})

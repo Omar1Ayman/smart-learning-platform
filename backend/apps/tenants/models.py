@@ -4,6 +4,7 @@ import uuid
 from django.db import models
 from django.utils.text import slugify
 
+
 def default_tenant_settings() -> dict:
     """Default policy for a newly created tenant."""
     return {
@@ -42,7 +43,6 @@ def default_tenant_settings() -> dict:
             "teachers_can_manage_own_content": True,
             "teachers_can_publish_content_directly": False,
             "teachers_can_delete_others_content": False,
-
             # Admin permissions
             "admins_can_manage_teachers": True,
             "admins_can_delete_assessments": True,
@@ -50,12 +50,13 @@ def default_tenant_settings() -> dict:
             "admins_can_export_data": False,
             "admins_can_view_billing": False,
             "admins_can_manage_settings": False,
-
             # Advanced
             "enable_audit_log_for_teachers": False,
             "enable_bulk_import": True,
         },
     }
+
+
 class Tenant(models.Model):
     """The isolation boundary of the whole system.
 
@@ -163,7 +164,9 @@ class DemoRequest(models.Model):
     num_students = models.PositiveIntegerField(null=True, blank=True)
     message = models.TextField(blank=True, default="")
 
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.NEW, db_index=True
+    )
     reviewed_by = models.ForeignKey(
         "accounts.User",
         null=True,

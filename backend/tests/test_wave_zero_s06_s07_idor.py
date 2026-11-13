@@ -14,6 +14,7 @@ in a group/grade they are assigned to.
 Related: TeacherDetailView used to block teachers from their own profile.
 Fixed to allow self-service.
 """
+
 from decimal import Decimal
 
 import pytest
@@ -65,37 +66,23 @@ def _build_tenant_with_two_subjects():
     math = SubjectFactory(tenant=tenant, name="Math")
     bio = SubjectFactory(tenant=tenant, name="Bio")
 
-    course_math_g1 = CourseFactory(
-        tenant=tenant, subject=math, grade=grade_1, name="Math G1"
-    )
-    course_bio_g1 = CourseFactory(
-        tenant=tenant, subject=bio, grade=grade_1, name="Bio G1"
-    )
-    course_math_g2 = CourseFactory(
-        tenant=tenant, subject=math, grade=grade_2, name="Math G2"
-    )
+    course_math_g1 = CourseFactory(tenant=tenant, subject=math, grade=grade_1, name="Math G1")
+    course_bio_g1 = CourseFactory(tenant=tenant, subject=bio, grade=grade_1, name="Bio G1")
+    course_math_g2 = CourseFactory(tenant=tenant, subject=math, grade=grade_2, name="Math G2")
 
     teacher_math = TeacherUserFactory(tenant=tenant, email="math@test.com")
     teacher_bio = TeacherUserFactory(tenant=tenant, email="bio@test.com")
 
-    TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher_math, course=course_math_g1
-    )
-    TeacherAssignment.objects.create(
-        tenant=tenant, teacher=teacher_bio, course=course_bio_g1
-    )
+    TeacherAssignment.objects.create(tenant=tenant, teacher=teacher_math, course=course_math_g1)
+    TeacherAssignment.objects.create(tenant=tenant, teacher=teacher_bio, course=course_bio_g1)
 
     group_math_g1 = GroupFactory(tenant=tenant, grade=grade_1, academic_year=year)
     group_math_g2 = GroupFactory(tenant=tenant, grade=grade_2, academic_year=year)
 
     student_g1 = StudentUserFactory(tenant=tenant, email="s1@test.com")
-    EnrollmentFactory(
-        tenant=tenant, student=student_g1, group=group_math_g1, academic_year=year
-    )
+    EnrollmentFactory(tenant=tenant, student=student_g1, group=group_math_g1, academic_year=year)
     student_g2 = StudentUserFactory(tenant=tenant, email="s2@test.com")
-    EnrollmentFactory(
-        tenant=tenant, student=student_g2, group=group_math_g2, academic_year=year
-    )
+    EnrollmentFactory(tenant=tenant, student=student_g2, group=group_math_g2, academic_year=year)
 
     return {
         "tenant": tenant,
@@ -116,9 +103,7 @@ def _build_tenant_with_two_subjects():
 def _make_published_assessment_with_question(tenant, subject, grade, teacher):
     """One QUESTION bank matching (subject, grade), one MCQ question
     linked to a PUBLISHED assessment targeting that grade."""
-    assessment = AssessmentFactory(
-        tenant=tenant, status="PUBLISHED", created_by=teacher
-    )
+    assessment = AssessmentFactory(tenant=tenant, status="PUBLISHED", created_by=teacher)
     bank = QuestionBankFactory(tenant=tenant, subject=subject, grade=grade)
     question = QuestionFactory(
         bank=bank,
@@ -171,9 +156,7 @@ def test_teacher_can_view_attempt_in_own_subject_grade(api_client):
     assessment, question = _make_published_assessment_with_question(
         ctx["tenant"], ctx["math"], ctx["grade_1"], teacher=ctx["owner"]
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g1"], question
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g1"], question)
 
     client = login_as(api_client, ctx["teacher_math"])
     r = client.get(f"/api/v1/attempts/{attempt.id}/grading/")
@@ -186,9 +169,7 @@ def test_teacher_cannot_view_attempt_in_other_subject_same_grade(api_client):
     assessment, question = _make_published_assessment_with_question(
         ctx["tenant"], ctx["bio"], ctx["grade_1"], teacher=ctx["owner"]
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g1"], question
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g1"], question)
 
     client = login_as(api_client, ctx["teacher_math"])
     r = client.get(f"/api/v1/attempts/{attempt.id}/grading/")
@@ -203,9 +184,7 @@ def test_teacher_cannot_view_attempt_same_subject_different_grade(api_client):
     assessment, question = _make_published_assessment_with_question(
         ctx["tenant"], ctx["math"], ctx["grade_2"], teacher=ctx["owner"]
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g2"], question
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g2"], question)
 
     client = login_as(api_client, ctx["teacher_math"])
     r = client.get(f"/api/v1/attempts/{attempt.id}/grading/")
@@ -222,9 +201,7 @@ def test_teacher_can_view_attempt_on_own_created_assessment(api_client):
     assessment, question = _make_published_assessment_with_question(
         ctx["tenant"], ctx["math"], ctx["grade_1"], teacher=teacher
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g1"], question
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g1"], question)
 
     client = login_as(api_client, teacher)
     r = client.get(f"/api/v1/attempts/{attempt.id}/grading/")
@@ -246,12 +223,8 @@ def test_teacher_cannot_grade_essay_outside_question_scope(api_client):
     assessment = AssessmentFactory(
         tenant=ctx["tenant"], status="PUBLISHED", created_by=ctx["owner"]
     )
-    math_bank = QuestionBankFactory(
-        tenant=ctx["tenant"], subject=ctx["math"], grade=ctx["grade_1"]
-    )
-    bio_bank = QuestionBankFactory(
-        tenant=ctx["tenant"], subject=ctx["bio"], grade=ctx["grade_1"]
-    )
+    math_bank = QuestionBankFactory(tenant=ctx["tenant"], subject=ctx["math"], grade=ctx["grade_1"])
+    bio_bank = QuestionBankFactory(tenant=ctx["tenant"], subject=ctx["bio"], grade=ctx["grade_1"])
     math_q = QuestionFactory(
         bank=math_bank,
         tenant=ctx["tenant"],
@@ -280,9 +253,7 @@ def test_teacher_cannot_grade_essay_outside_question_scope(api_client):
         target_type="GRADE",
         grade=ctx["grade_1"],
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g1"], math_q
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g1"], math_q)
     # Add a second answer for bio_q (also pending).
     AttemptAnswer.objects.create(
         tenant=ctx["tenant"],
@@ -320,9 +291,7 @@ def test_owner_can_grade_any_question(api_client):
     assessment, question = _make_published_assessment_with_question(
         ctx["tenant"], ctx["bio"], ctx["grade_1"], teacher=ctx["teacher_bio"]
     )
-    attempt = _make_attempt_with_essay(
-        ctx["tenant"], assessment, ctx["student_g1"], question
-    )
+    attempt = _make_attempt_with_essay(ctx["tenant"], assessment, ctx["student_g1"], question)
 
     client = login_as(api_client, ctx["owner"])
     r = client.post(

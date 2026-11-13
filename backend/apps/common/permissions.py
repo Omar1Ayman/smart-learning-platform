@@ -12,7 +12,9 @@ class IsTenantMember(BasePermission):
 
     def has_permission(self, request, view):
         return bool(
-            request.user and request.user.is_authenticated and getattr(request, "tenant", None) is not None
+            request.user
+            and request.user.is_authenticated
+            and getattr(request, "tenant", None) is not None
         )
 
 
@@ -25,7 +27,9 @@ def HasRole(*roles):
         message = f"هذا الإجراء متاح فقط للأدوار: {', '.join(roles)}."
 
         def has_permission(self, request, view):
-            return bool(request.user and request.user.is_authenticated and request.user.role in roles)
+            return bool(
+                request.user and request.user.is_authenticated and request.user.role in roles
+            )
 
     _HasRole.__name__ = f"HasRole_{'_'.join(roles)}"
     return _HasRole
@@ -42,7 +46,9 @@ class IsAdminForWriteActions(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return bool(
-            request.user and request.user.is_authenticated and request.user.role in ("OWNER", "ADMIN")
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ("OWNER", "ADMIN")
         )
 
 

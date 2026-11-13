@@ -6,9 +6,12 @@ INSERT with tens of thousands of params, approaching PG's
 max_query_parameters (65535) and risking "packet too large" errors.
 After fix: chunked at 500 rows per INSERT.
 """
+
 import pytest
+
 from apps.notifications.models import Notification
 from apps.notifications.services import notify_many
+
 from .factories import TenantFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -28,10 +31,7 @@ def test_notify_many_handles_large_batch():
     # Each user gets exactly one row — the chunking must not duplicate
     # or drop any.
     assert (
-        Notification.objects.filter(title="Bulk notification")
-        .values("user_id")
-        .distinct()
-        .count()
+        Notification.objects.filter(title="Bulk notification").values("user_id").distinct().count()
         == 1200
     )
 

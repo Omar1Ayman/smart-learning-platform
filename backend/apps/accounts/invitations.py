@@ -20,8 +20,7 @@ def send_account_invitation(user: User) -> None:
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     invitation_url = (
-        f"{settings.FRONTEND_URL.rstrip('/')}/reset-password"
-        f"?uidb64={uidb64}&token={token}&invite=1"
+        f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?uidb64={uidb64}&token={token}&invite=1"
     )
 
     try:

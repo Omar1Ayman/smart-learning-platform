@@ -23,7 +23,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import UserSession
 
-
 _BROWSER_PATTERNS = [
     (r"edg/", "Edge"),
     (r"opr/|opera", "Opera"),
@@ -96,10 +95,7 @@ def rotate_session(user, old_jti: str, new_refresh_token_str: str, request) -> U
     e.g. after a data wipe), we fall back to creating a fresh session.
     """
     new_jti = RefreshToken(new_refresh_token_str)["jti"]
-    session = (
-        UserSession.objects.filter(user=user, jti=old_jti, revoked_at__isnull=True)
-        .first()
-    )
+    session = UserSession.objects.filter(user=user, jti=old_jti, revoked_at__isnull=True).first()
     if session is None:
         return create_session(user, new_refresh_token_str, request)
     session.jti = new_jti
@@ -123,9 +119,7 @@ def revoke_session(session: UserSession, reason: str = "user_requested") -> None
         pass
 
 
-def revoke_all_sessions(
-    user, except_jti: str | None = None, reason: str = "user_requested"
-) -> int:
+def revoke_all_sessions(user, except_jti: str | None = None, reason: str = "user_requested") -> int:
     """Revoke every active session. Optionally keep one (the current)."""
     qs = UserSession.objects.filter(user=user, revoked_at__isnull=True)
     if except_jti:

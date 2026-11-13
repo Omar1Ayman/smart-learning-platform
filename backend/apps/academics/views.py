@@ -1,13 +1,11 @@
 from django.db import models
 from django.http import HttpResponse
-
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from apps.accounts.models import User
 from apps.assessments.models import Assessment
 from apps.audit.services import log_action
 from apps.common.permissions import IsAdminForWriteActions
@@ -44,9 +42,7 @@ from .serializers import (
 class AcademicYearViewSet(TenantScopedViewSet):
     queryset = AcademicYear.objects.all()
     serializer_class = AcademicYearSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["is_active", "status"]
 
     @action(detail=True, methods=["get"], url_path="close-preflight")
@@ -86,9 +82,7 @@ class AcademicYearViewSet(TenantScopedViewSet):
             result["reused_existing"] = True
         if request_changed:
             result["request_changed"] = True
-        response_status = (
-            status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        )
+        response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(result, status=response_status)
 
     @action(detail=True, methods=["post"], url_path="promote-students")
@@ -100,9 +94,7 @@ class AcademicYearViewSet(TenantScopedViewSet):
 
         target_year_id = serializer.validated_data["target_year"]
         target_year = (
-            AcademicYear.objects.for_tenant(request.tenant)
-            .filter(id=target_year_id)
-            .first()
+            AcademicYear.objects.for_tenant(request.tenant).filter(id=target_year_id).first()
         )
         if target_year is None:
             return Response(
@@ -166,18 +158,14 @@ class TermViewSet(YearAwareViewSet):
     queryset = Term.objects.all()
     serializer_class = TermSerializer
     draft_write_allowed = True
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["academic_year"]
 
 
 class StageViewSet(TenantScopedViewSet):
     queryset = Stage.objects.all()
     serializer_class = StageSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
 
     @action(detail=True, methods=["get"], url_path="detail")
     def aggregated_detail(self, request, pk=None):
@@ -223,9 +211,7 @@ class StageViewSet(TenantScopedViewSet):
 class GradeViewSet(TenantScopedViewSet):
     queryset = Grade.objects.all()
     serializer_class = GradeSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["stage"]
 
     @action(detail=True, methods=["get"], url_path="detail")
@@ -240,18 +226,20 @@ class GradeViewSet(TenantScopedViewSet):
                 "id": str(c.id),
                 "name": c.name,
                 "subject_name": c.subject.name,
-                "academic_year_name": (
-                    c.academic_year.name if c.academic_year_id else None
-                ),
+                "academic_year_name": (c.academic_year.name if c.academic_year_id else None),
                 "term_name": c.term.name if c.term_id else None,
             }
             for c in courses.select_related("subject", "academic_year", "term")
         ]
 
-        groups_qs = Group.objects.for_tenant(tenant).filter(grade=grade).annotate(
-            student_count=models.Count(
-                "enrollments",
-                filter=models.Q(enrollments__status="ACTIVE"),
+        groups_qs = (
+            Group.objects.for_tenant(tenant)
+            .filter(grade=grade)
+            .annotate(
+                student_count=models.Count(
+                    "enrollments",
+                    filter=models.Q(enrollments__status="ACTIVE"),
+                )
             )
         )
         groups_data = [
@@ -303,9 +291,7 @@ class GroupViewSet(YearAwareViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
     draft_write_allowed = True
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["grade", "academic_year"]
 
     @action(detail=True, methods=["get"], url_path="detail")
@@ -323,8 +309,7 @@ class GroupViewSet(YearAwareViewSet):
             {
                 "id": str(e.student.id),
                 "email": e.student.email,
-                "name": f"{e.student.first_name} {e.student.last_name}".strip()
-                or e.student.email,
+                "name": f"{e.student.first_name} {e.student.last_name}".strip() or e.student.email,
                 "status": e.status,
                 "term_name": e.term.name if e.term_id else None,
             }
@@ -340,8 +325,7 @@ class GroupViewSet(YearAwareViewSet):
             {
                 "id": str(a.teacher.id),
                 "email": a.teacher.email,
-                "name": f"{a.teacher.first_name} {a.teacher.last_name}".strip()
-                or a.teacher.email,
+                "name": f"{a.teacher.first_name} {a.teacher.last_name}".strip() or a.teacher.email,
                 "course_name": a.course.name,
             }
             for a in assignments
@@ -375,18 +359,14 @@ class GroupViewSet(YearAwareViewSet):
 class SubjectViewSet(TenantScopedViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
 
 
 class CourseViewSet(YearAwareViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     draft_write_allowed = True
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["subject", "grade", "is_active", "academic_year", "term"]
 
     @action(detail=True, methods=["get"], url_path="detail")
@@ -416,9 +396,7 @@ class CourseViewSet(YearAwareViewSet):
                 "id": str(a.teacher.id),
                 "email": a.teacher.email,
                 "name": f"{a.teacher.first_name} {a.teacher.last_name}".strip() or a.teacher.email,
-                "groups": [
-                    {"id": str(g.id), "name": g.name} for g in a.groups.all()
-                ],
+                "groups": [{"id": str(g.id), "name": g.name} for g in a.groups.all()],
                 "scope_label": "الصف كامل"
                 if not a.groups.exists()
                 else f"{a.groups.count()} مجموعة",
@@ -522,13 +500,9 @@ class CourseViewSet(YearAwareViewSet):
         buf = build_template_xlsx()
         response = HttpResponse(
             buf.getvalue(),
-            content_type=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
+            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
-        response["Content-Disposition"] = (
-            'attachment; filename="curriculum_template.xlsx"'
-        )
+        response["Content-Disposition"] = 'attachment; filename="curriculum_template.xlsx"'
         return response
 
     @action(
@@ -547,9 +521,11 @@ class CourseViewSet(YearAwareViewSet):
 
         from .import_service import (
             REQUIRED_HEADERS,
-            import_curriculum as do_import,
             summarize_will_create,
             validate_curriculum_rows,
+        )
+        from .import_service import (
+            import_curriculum as do_import,
         )
 
         upload = request.FILES.get("file")
@@ -694,18 +670,14 @@ class CourseViewSet(YearAwareViewSet):
 class ChapterViewSet(YearAwareViewSet):
     queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["course"]
 
 
 class LessonViewSet(YearAwareViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
-    permission_classes = TenantScopedViewSet.permission_classes + [
-        IsAdminForWriteActions
-    ]
+    permission_classes = TenantScopedViewSet.permission_classes + [IsAdminForWriteActions]
     filterset_fields = ["chapter"]
 
     @action(detail=True, methods=["get"], url_path="detail")
@@ -714,8 +686,8 @@ class LessonViewSet(YearAwareViewSet):
         lesson = self.get_object()
         tenant = request.tenant
 
-        content_qs = Content.objects.for_tenant(tenant).filter(lesson=lesson).order_by(
-            "-created_at"
+        content_qs = (
+            Content.objects.for_tenant(tenant).filter(lesson=lesson).order_by("-created_at")
         )
         content_data = [
             {
@@ -729,9 +701,7 @@ class LessonViewSet(YearAwareViewSet):
         ]
 
         siblings = list(
-            Lesson.objects.for_tenant(tenant)
-            .filter(chapter=lesson.chapter)
-            .order_by("order")
+            Lesson.objects.for_tenant(tenant).filter(chapter=lesson.chapter).order_by("order")
         )
         idx = next((i for i, l in enumerate(siblings) if l.id == lesson.id), None)
         prev_lesson = (

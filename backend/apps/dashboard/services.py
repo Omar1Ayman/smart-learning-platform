@@ -13,7 +13,7 @@ happened in the last 7 days".
 from datetime import timedelta
 
 from django.db.models import Avg, Case, Count, F, FloatField, Q, Value, When
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -21,7 +21,6 @@ from apps.assessments.models import Assessment
 from apps.assessments.services import visible_assessments_for_student
 from apps.exam_engine.models import ExamAttempt
 from apps.people.models import Enrollment, TeacherAssignment
-
 
 ALLOWED_DAYS = (7, 14, 30, 90)
 
@@ -76,9 +75,7 @@ def _daily_series(attempts_qs, days):
                 "date": d,
                 "attempts": row["count"] if row else 0,
                 "avg_percentage": (
-                    round(float(row["avg_pct"]), 1)
-                    if row and row["avg_pct"] is not None
-                    else None
+                    round(float(row["avg_pct"]), 1) if row and row["avg_pct"] is not None else None
                 ),
             }
         )
@@ -86,15 +83,14 @@ def _daily_series(attempts_qs, days):
 
 
 def _avg_percentage(qs):
-    result = qs.filter(status="GRADED", score__isnull=False).aggregate(
-        avg=Avg(_percentage_expr())
-    )
+    result = qs.filter(status="GRADED", score__isnull=False).aggregate(avg=Avg(_percentage_expr()))
     return round(float(result["avg"]), 1) if result["avg"] is not None else None
 
 
 # ============================================================================
 # Admin
 # ============================================================================
+
 
 def admin_dashboard(tenant, days=7):
     since = timezone.now() - timedelta(days=days)
@@ -165,6 +161,7 @@ def admin_dashboard(tenant, days=7):
 # Teacher
 # ============================================================================
 
+
 def teacher_dashboard(tenant, teacher, days=30):
     """Teacher dashboard aggregation.
 
@@ -188,28 +185,21 @@ def teacher_dashboard(tenant, teacher, days=30):
     student_qs = (
         Enrollment.objects.for_tenant(tenant)
         .filter(status=Enrollment.Status.ACTIVE)
-        .filter(
-            Q(group_id__in=narrowed_group_ids)
-            | Q(group__grade_id__in=whole_grade_ids)
-        )
+        .filter(Q(group_id__in=narrowed_group_ids) | Q(group__grade_id__in=whole_grade_ids))
         .values("student_id")
         .distinct()
     )
     my_students_count = student_qs.count()
 
     my_assessments = Assessment.objects.for_tenant(tenant).filter(created_by=teacher)
-    my_attempts_all = ExamAttempt.objects.for_tenant(tenant).filter(
-        assessment__created_by=teacher
-    )
+    my_attempts_all = ExamAttempt.objects.for_tenant(tenant).filter(assessment__created_by=teacher)
     my_attempts = my_attempts_all.filter(submitted_at__gte=since)
 
     pending_grading = my_attempts_all.filter(status=ExamAttempt.Status.SUBMITTED).count()
 
     metrics = {
         "my_students": my_students_count,
-        "my_active_assessments": my_assessments.filter(
-            status=Assessment.Status.PUBLISHED
-        ).count(),
+        "my_active_assessments": my_assessments.filter(status=Assessment.Status.PUBLISHED).count(),
         "pending_grading": pending_grading,
         "avg_percentage": _avg_percentage(my_attempts),
         "attempts_in_range": my_attempts.count(),
@@ -255,8 +245,7 @@ def teacher_dashboard(tenant, teacher, days=30):
             "assessment_title": a.assessment.title,
             "student_email": a.student.email,
             "student_name": (
-                f"{a.student.first_name} {a.student.last_name}".strip()
-                or a.student.email
+                f"{a.student.first_name} {a.student.last_name}".strip() or a.student.email
             ),
             "submitted_at": a.submitted_at,
             "pending_essays": a.pending_essays,
@@ -270,9 +259,12 @@ def teacher_dashboard(tenant, teacher, days=30):
         "recent_assessments": recent_assessments,
         "pending_grading_items": pending_grading_items,
     }
+
+
 # ============================================================================
 # Student
 # ============================================================================
+
 
 def student_dashboard(tenant, student, days=30):
     """Student dashboard aggregation.
@@ -302,8 +294,7 @@ def student_dashboard(tenant, student, days=30):
     # Map of assessment_id -> ExamAttempt.id for this student's
     # IN_PROGRESS attempts. Used below to power the resume CTA.
     in_progress_map = {
-        a.assessment_id: a.id
-        for a in my_attempts_all.filter(status=ExamAttempt.Status.IN_PROGRESS)
+        a.assessment_id: a.id for a in my_attempts_all.filter(status=ExamAttempt.Status.IN_PROGRESS)
     }
     upcoming = []
     for a in upcoming_qs:
@@ -319,36 +310,35 @@ def student_dashboard(tenant, student, days=30):
         # Phase A — effective window for THIS student (uses target overrides
         # + tenant exam policy). Mirrors what /assessments/ returns.
         from apps.assessments.services import resolve_effective_window
+
         win = resolve_effective_window(a, student)
 
         upcoming.append(
-        {
-            "id": a.id,
-            "title": a.title,
-            "assessment_type": a.assessment_type,
-            "starts_at": a.starts_at,
-            "ends_at": a.ends_at,
-            "duration_minutes": a.duration_minutes,
-            "my_attempts_used": used,
-            "max_attempts": a.max_attempts,
-            "has_in_progress_attempt": a.id in in_progress_map,
-            "in_progress_attempt_id": in_progress_map.get(a.id),
-            # NEW: window payload
-            "window": {
-                "state": win["state"],
-                "can_start": win["can_start"],
-                "reason": win["reason"],
-                "opens_at": win["opens_at"].isoformat() if win["opens_at"] else None,
-                "closes_at": win["closes_at"].isoformat() if win["closes_at"] else None,
-                "latest_entry_at": (
-                    win["latest_entry_at"].isoformat()
-                    if win["latest_entry_at"]
-                    else None
-                ),
-                "max_duration_if_started_now": win["max_duration_if_started_now"],
-            },
-        }
-    )
+            {
+                "id": a.id,
+                "title": a.title,
+                "assessment_type": a.assessment_type,
+                "starts_at": a.starts_at,
+                "ends_at": a.ends_at,
+                "duration_minutes": a.duration_minutes,
+                "my_attempts_used": used,
+                "max_attempts": a.max_attempts,
+                "has_in_progress_attempt": a.id in in_progress_map,
+                "in_progress_attempt_id": in_progress_map.get(a.id),
+                # NEW: window payload
+                "window": {
+                    "state": win["state"],
+                    "can_start": win["can_start"],
+                    "reason": win["reason"],
+                    "opens_at": win["opens_at"].isoformat() if win["opens_at"] else None,
+                    "closes_at": win["closes_at"].isoformat() if win["closes_at"] else None,
+                    "latest_entry_at": (
+                        win["latest_entry_at"].isoformat() if win["latest_entry_at"] else None
+                    ),
+                    "max_duration_if_started_now": win["max_duration_if_started_now"],
+                },
+            }
+        )
     graded = my_attempts.filter(status=ExamAttempt.Status.GRADED)
     pass_count = graded.filter(is_passed=True).count()
     pass_rate = round(pass_count / graded.count() * 100, 1) if graded.count() else None
@@ -384,9 +374,7 @@ def student_dashboard(tenant, student, days=30):
     # F-20: unread notifications badge.
     from apps.notifications.models import Notification
 
-    unread_notifications_count = Notification.objects.filter(
-        user=student, is_read=False
-    ).count()
+    unread_notifications_count = Notification.objects.filter(user=student, is_read=False).count()
 
     return {
         "metrics": metrics,
@@ -395,7 +383,8 @@ def student_dashboard(tenant, student, days=30):
         "recent_results": recent_results,
         "unread_notifications_count": unread_notifications_count,
     }
-    
+
+
 # ============================================================================
 # Batch 18 (Milestone 5) — Admin reports
 # ============================================================================
@@ -473,9 +462,7 @@ def admin_reports(tenant, days=7):
     # Overall
     total_present = sum(e["total_present"] for e in by_group)
     total_records = sum(e["total_records"] for e in by_group)
-    overall_rate = (
-        round(total_present / total_records * 100, 1) if total_records > 0 else None
-    )
+    overall_rate = round(total_present / total_records * 100, 1) if total_records > 0 else None
 
     # Daily trend
     trend_map: dict = {}
@@ -491,27 +478,19 @@ def admin_reports(tenant, days=7):
         {
             "date": d,
             "sessions": v["sessions"],
-            "present_pct": (
-                round(v["present"] / v["total"] * 100, 1) if v["total"] > 0 else None
-            ),
+            "present_pct": (round(v["present"] / v["total"] * 100, 1) if v["total"] > 0 else None),
         }
         for d, v in sorted(trend_map.items())
     ]
 
     # ---- Exams: attempts started within the range ----
-    attempts_in_range = ExamAttempt.objects.for_tenant(tenant).filter(
-        started_at__gte=since_dt
-    )
+    attempts_in_range = ExamAttempt.objects.for_tenant(tenant).filter(started_at__gte=since_dt)
     total_attempts = attempts_in_range.count()
     completed_attempts = attempts_in_range.filter(
         status__in=[ExamAttempt.Status.SUBMITTED, ExamAttempt.Status.GRADED]
     ).count()
-    pending_grading = attempts_in_range.filter(
-        status=ExamAttempt.Status.SUBMITTED
-    ).count()
-    in_progress = attempts_in_range.filter(
-        status=ExamAttempt.Status.IN_PROGRESS
-    ).count()
+    pending_grading = attempts_in_range.filter(status=ExamAttempt.Status.SUBMITTED).count()
+    in_progress = attempts_in_range.filter(status=ExamAttempt.Status.IN_PROGRESS).count()
 
     # Avg percentage (graded only, safe division)
     pct_expr = Case(
@@ -523,9 +502,7 @@ def admin_reports(tenant, days=7):
         avg_pct=Avg(pct_expr)
     )
     avg_score_pct = (
-        round(float(avg_result["avg_pct"]), 1)
-        if avg_result["avg_pct"] is not None
-        else None
+        round(float(avg_result["avg_pct"]), 1) if avg_result["avg_pct"] is not None else None
     )
 
     # Top 5 assessments by attempt volume
@@ -556,9 +533,7 @@ def admin_reports(tenant, days=7):
     ]
 
     # ---- Teachers: activity per teacher (4 aggregated queries total) ----
-    teachers_qs = User.objects.for_tenant(tenant).filter(
-        role=User.Role.TEACHER, is_active=True
-    )
+    teachers_qs = User.objects.for_tenant(tenant).filter(role=User.Role.TEACHER, is_active=True)
     teacher_ids = list(teachers_qs.values_list("id", flat=True))
 
     assessments_by_teacher = dict(

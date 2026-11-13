@@ -14,7 +14,17 @@ import uuid
 
 from django.db import models
 
-from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Lesson, Stage, Subject, Term
+from apps.academics.models import (
+    AcademicYear,
+    Chapter,
+    Course,
+    Grade,
+    Group,
+    Lesson,
+    Stage,
+    Subject,
+    Term,
+)
 from apps.common.models import TenantScopedModel
 
 from .validators import generate_storage_filename
@@ -68,16 +78,24 @@ class Content(TenantScopedModel):
     external_url = models.URLField(blank=True, default="")
     text_body = models.TextField(blank=True, default="")
 
-    scan_status = models.CharField(max_length=20, choices=ScanStatus.choices, default=ScanStatus.CLEAN)
+    scan_status = models.CharField(
+        max_length=20, choices=ScanStatus.choices, default=ScanStatus.CLEAN
+    )
     is_published = models.BooleanField(default=True)
     # Reserved for a future public-preview feature — no endpoint reads
     # this yet, so setting it True does not currently expose anything.
     is_public = models.BooleanField(default=False)
 
     # Flexible scope (spec #27) — every field independently optional.
-    stage = models.ForeignKey(Stage, null=True, blank=True, on_delete=models.CASCADE, related_name="contents")
-    grade = models.ForeignKey(Grade, null=True, blank=True, on_delete=models.CASCADE, related_name="contents")
-    group = models.ForeignKey(Group, null=True, blank=True, on_delete=models.CASCADE, related_name="contents")
+    stage = models.ForeignKey(
+        Stage, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
+    )
+    grade = models.ForeignKey(
+        Grade, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
+    )
+    group = models.ForeignKey(
+        Group, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
+    )
     subject = models.ForeignKey(
         Subject, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
     )
@@ -93,10 +111,16 @@ class Content(TenantScopedModel):
     academic_year = models.ForeignKey(
         AcademicYear, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
     )
-    term = models.ForeignKey(Term, null=True, blank=True, on_delete=models.CASCADE, related_name="contents")
+    term = models.ForeignKey(
+        Term, null=True, blank=True, on_delete=models.CASCADE, related_name="contents"
+    )
 
     created_by = models.ForeignKey(
-        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="uploaded_content"
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_content",
     )
 
     class Meta:

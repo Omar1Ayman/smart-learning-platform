@@ -13,9 +13,8 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.assessments.models import Assessment, AssessmentQuestion
+from apps.assessments.models import AssessmentQuestion
 from apps.exam_engine.models import AttemptAnswer, ExamAttempt
-from apps.questions.models import Question
 
 from .factories import (
     AssessmentFactory,
@@ -50,6 +49,7 @@ def _link_question(assessment, student_author):
 
 # ---------- Attempt numbering ----------
 
+
 def test_can_have_multiple_attempts_with_different_numbers():
     assessment = AssessmentFactory()
     student = StudentUserFactory(tenant=assessment.tenant)
@@ -78,6 +78,7 @@ def test_same_attempt_number_is_fine_across_different_students():
 
 # ---------- Score constraints ----------
 
+
 def test_score_cannot_exceed_max_score():
     assessment = AssessmentFactory()
     student = StudentUserFactory(tenant=assessment.tenant)
@@ -101,6 +102,7 @@ def test_score_null_is_allowed_until_graded():
 
 # ---------- Expiry constraints ----------
 
+
 def test_expires_at_must_be_after_started_at():
     assessment = AssessmentFactory()
     student = StudentUserFactory(tenant=assessment.tenant)
@@ -118,6 +120,7 @@ def test_expires_at_null_is_allowed_for_self_paced():
 
 # ---------- Answers: uniqueness ----------
 
+
 def test_cannot_have_two_answers_for_same_question_in_same_attempt():
     assessment = AssessmentFactory()
     student = StudentUserFactory(tenant=assessment.tenant)
@@ -130,6 +133,7 @@ def test_cannot_have_two_answers_for_same_question_in_same_attempt():
 
 
 # ---------- Answers: awarded points sanity ----------
+
 
 def test_awarded_points_cannot_be_negative():
     assessment = AssessmentFactory()
@@ -148,6 +152,7 @@ def test_awarded_points_cannot_be_negative():
 
 # ---------- is_expired logic ----------
 
+
 def test_is_expired_is_true_once_timer_passes():
     assessment = AssessmentFactory()
     student = StudentUserFactory(tenant=assessment.tenant)
@@ -163,6 +168,7 @@ def test_is_expired_is_true_once_timer_passes():
 
 
 # ---------- RETAIN / RESTRICT: cannot delete history ----------
+
 
 def test_cannot_delete_question_with_answers():
     assessment = AssessmentFactory()

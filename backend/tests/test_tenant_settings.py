@@ -25,6 +25,7 @@ pytestmark = pytest.mark.django_db
 
 # ---------- Model defaults ----------
 
+
 def test_new_tenant_has_default_settings():
     tenant = TenantFactory()
     s = tenant.get_settings()
@@ -42,6 +43,7 @@ def test_get_settings_merges_missing_defaults():
 
 
 # ---------- Endpoint permissions ----------
+
 
 def test_owner_can_get_settings(api_client):
     tenant = TenantFactory()
@@ -78,21 +80,22 @@ def test_owner_can_patch_settings(api_client):
 
 # ---------- Policy enforcement: allow_retakes ----------
 
+
 def test_allow_retakes_false_blocks_second_attempt():
     group = GroupFactory()
     student = StudentUserFactory(tenant=group.tenant)
     EnrollmentFactory(
         tenant=group.tenant, student=student, group=group, academic_year=group.academic_year
     )
-    assessment = AssessmentFactory(
-        tenant=group.tenant, status="PUBLISHED", max_attempts=5
-    )
+    assessment = AssessmentFactory(tenant=group.tenant, status="PUBLISHED", max_attempts=5)
     AssessmentTarget.objects.create(
         tenant=group.tenant, assessment=assessment, target_type="GRADE", grade=group.grade
     )
     bank = QuestionBankFactory(tenant=group.tenant)
     q = QuestionFactory(
-        bank=bank, tenant=group.tenant, approved=True,
+        bank=bank,
+        tenant=group.tenant,
+        approved=True,
         created_by=TeacherUserFactory(tenant=group.tenant),
     )
     AssessmentQuestion.objects.create(
@@ -116,6 +119,7 @@ def test_allow_retakes_false_blocks_second_attempt():
 
 
 # ---------- Policy enforcement: question review ----------
+
 
 def test_require_review_off_auto_approves_teacher_question(api_client):
     tenant = TenantFactory()

@@ -18,7 +18,6 @@ from .factories import (
     QuestionFactory,
     StudentUserFactory,
     TeacherUserFactory,
-    UserFactory,
 )
 
 pytestmark = pytest.mark.django_db

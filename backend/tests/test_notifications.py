@@ -7,7 +7,6 @@ from apps.assessments.services import get_targeted_students
 from apps.exam_engine.services import save_answer, start_attempt, submit_attempt
 from apps.notifications.models import Notification
 from apps.notifications.services import notify, notify_many
-from apps.questions.models import Question
 
 from .conftest import login_as
 from .factories import (
@@ -27,6 +26,7 @@ pytestmark = pytest.mark.django_db
 
 # ---------- Service primitives ----------
 
+
 def test_notify_creates_a_row():
     user = UserFactory()
     n = notify(user, "SYSTEM", "Hello", "Body", "/link")
@@ -44,6 +44,7 @@ def test_notify_many_creates_one_per_user():
 
 
 # ---------- API ----------
+
 
 def test_user_sees_only_their_own_notifications(api_client):
     user_a = UserFactory()
@@ -106,6 +107,7 @@ def test_cross_user_isolation_via_id(api_client):
 
 # ---------- get_targeted_students ----------
 
+
 def test_get_targeted_students_by_grade():
     group = GroupFactory()
     student = StudentUserFactory(tenant=group.tenant)
@@ -123,6 +125,7 @@ def test_get_targeted_students_by_grade():
 
 # ---------- Trigger: publish ----------
 
+
 def test_publish_creates_notification_for_targeted_students(api_client):
     group = GroupFactory()
     group.academic_year.activate()
@@ -137,7 +140,9 @@ def test_publish_creates_notification_for_targeted_students(api_client):
     )
     bank = QuestionBankFactory(tenant=group.tenant)
     q = QuestionFactory(
-        bank=bank, tenant=group.tenant, approved=True,
+        bank=bank,
+        tenant=group.tenant,
+        approved=True,
         created_by=TeacherUserFactory(tenant=group.tenant),
     )
     AssessmentQuestion.objects.create(
@@ -148,12 +153,11 @@ def test_publish_creates_notification_for_targeted_students(api_client):
     r = client.post(f"/api/v1/assessments/{assessment.id}/publish/")
     assert r.status_code == 200
 
-    assert Notification.objects.filter(
-        user=student, type="EXAM_PUBLISHED"
-    ).exists()
+    assert Notification.objects.filter(user=student, type="EXAM_PUBLISHED").exists()
 
 
 # ---------- Trigger: submit ----------
+
 
 def test_submit_notifies_teacher_and_student(api_client):
     group = GroupFactory()
@@ -168,7 +172,11 @@ def test_submit_notifies_teacher_and_student(api_client):
     )
     bank = QuestionBankFactory(tenant=group.tenant)
     q = QuestionFactory(
-        bank=bank, tenant=group.tenant, question_type="MCQ", approved=True, created_by=teacher,
+        bank=bank,
+        tenant=group.tenant,
+        question_type="MCQ",
+        approved=True,
+        created_by=teacher,
     )
     correct = q.options.create(tenant=group.tenant, text="A", is_correct=True, order=1)
     q.options.create(tenant=group.tenant, text="B", is_correct=False, order=2)
@@ -188,24 +196,22 @@ def test_submit_notifies_teacher_and_student(api_client):
 
 # ---------- Trigger: question approve/reject ----------
 
+
 def test_question_approve_notifies_author(api_client):
     teacher = TeacherUserFactory()
     owner = UserFactory(tenant=teacher.tenant, role="OWNER")
     bank = QuestionBankFactory(tenant=teacher.tenant)
-    question = QuestionFactory(
-        bank=bank, tenant=teacher.tenant, created_by=teacher
-    )
+    question = QuestionFactory(bank=bank, tenant=teacher.tenant, created_by=teacher)
 
     client = login_as(api_client, owner)
     r = client.post(f"/api/v1/questions/{question.id}/approve/")
     assert r.status_code == 200
 
-    assert Notification.objects.filter(
-        user=teacher, type="QUESTION_APPROVED"
-    ).exists()
+    assert Notification.objects.filter(user=teacher, type="QUESTION_APPROVED").exists()
 
 
 # ---------- Trigger: pending question notifies admin ----------
+
 
 def test_teacher_pending_question_notifies_admin(api_client):
     tenant = TenantFactory()
@@ -220,6 +226,4 @@ def test_teacher_pending_question_notifies_admin(api_client):
         format="json",
     )
     assert r.status_code == 201
-    assert Notification.objects.filter(
-        user=owner, type="QUESTION_PENDING"
-    ).exists()
+    assert Notification.objects.filter(user=owner, type="QUESTION_PENDING").exists()

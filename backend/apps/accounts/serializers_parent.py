@@ -58,37 +58,32 @@ class ParentChildLinkSerializer(serializers.Serializer):
         request = self.context["request"]
         tenant = request.tenant
 
-        parent = User.objects.for_tenant(tenant).filter(
-            id=attrs["parent"], role=User.Role.PARENT
-        ).first()
+        parent = (
+            User.objects.for_tenant(tenant)
+            .filter(id=attrs["parent"], role=User.Role.PARENT)
+            .first()
+        )
         if parent is None:
             raise serializers.ValidationError(
                 {"parent": "ولي الأمر غير موجود أو ليس له دور PARENT."}
             )
 
-        student = User.objects.for_tenant(tenant).filter(
-            id=attrs["student"], role=User.Role.STUDENT
-        ).first()
+        student = (
+            User.objects.for_tenant(tenant)
+            .filter(id=attrs["student"], role=User.Role.STUDENT)
+            .first()
+        )
         if student is None:
             raise serializers.ValidationError({"student": "الطالب غير موجود."})
 
         if ParentChild.objects.filter(parent=parent, student=student).exists():
-            raise serializers.ValidationError(
-                {"parent": "هذا الوالد مرتبط بهذا الطالب بالفعل."}
-            )
+            raise serializers.ValidationError({"parent": "هذا الوالد مرتبط بهذا الطالب بالفعل."})
 
         if attrs.get("is_primary"):
-            existing = ParentChild.objects.filter(
-                student=student, is_primary=True
-            ).exists()
+            existing = ParentChild.objects.filter(student=student, is_primary=True).exists()
             if existing:
                 raise serializers.ValidationError(
-                    {
-                        "is_primary": (
-                            "يوجد ولي أمر أساسي لهذا الطالب بالفعل. "
-                            "أزل الصفة عنه أولًا."
-                        )
-                    }
+                    {"is_primary": ("يوجد ولي أمر أساسي لهذا الطالب بالفعل. أزل الصفة عنه أولًا.")}
                 )
 
         attrs["parent_obj"] = parent

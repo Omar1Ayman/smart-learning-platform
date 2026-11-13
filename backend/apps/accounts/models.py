@@ -74,8 +74,7 @@ class User(AbstractUser):
         db_table = "accounts_user"
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(is_platform_admin=True)
-                | models.Q(tenant__isnull=False),
+                condition=models.Q(is_platform_admin=True) | models.Q(tenant__isnull=False),
                 name="user_must_have_tenant_unless_platform_admin",
             ),
         ]
@@ -144,8 +143,6 @@ class UserSession(models.Model):
         return self.revoked_at is None
 
 
-
-
 class ParentChild(models.Model):
     """Links a PARENT user to a STUDENT user within the same tenant.
 
@@ -190,9 +187,7 @@ class ParentChild(models.Model):
         db_table = "accounts_parent_child"
         ordering = ["student", "-is_primary", "relationship"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["parent", "student"], name="uniq_parent_child"
-            ),
+            models.UniqueConstraint(fields=["parent", "student"], name="uniq_parent_child"),
             models.UniqueConstraint(
                 fields=["student"],
                 condition=models.Q(is_primary=True),
@@ -209,9 +204,7 @@ class ParentChild(models.Model):
             self.tenant_id = self.student.tenant_id
         if self.parent_id and self.student_id:
             if self.parent.tenant_id != self.student.tenant_id:
-                raise ValueError(
-                    "Parent and student must belong to the same tenant."
-                )
+                raise ValueError("Parent and student must belong to the same tenant.")
         super().save(*args, **kwargs)
 
     def __str__(self):

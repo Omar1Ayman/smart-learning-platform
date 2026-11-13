@@ -4,8 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 
 from apps.assessments.models import Assessment
 from apps.audit.services import log_action
@@ -29,8 +29,8 @@ from .serializers import (
 from .services import (
     finalize_attempt,
     grade_essay_answer,
-    record_attempt_event,
     recalculate_attempt_score,
+    record_attempt_event,
     reopen_attempt,
     save_answer,
     start_attempt,
@@ -45,19 +45,13 @@ class StartAttemptView(TenantContextMixin, APIView):
     permission_classes = [IsAuthenticated, IsTenantMember, HasRole("STUDENT")]
 
     def post(self, request, assessment_id):
-        assessment = (
-            Assessment.objects.for_tenant(request.tenant)
-            .filter(id=assessment_id)
-            .first()
-        )
+        assessment = Assessment.objects.for_tenant(request.tenant).filter(id=assessment_id).first()
         if assessment is None:
             return Response(
                 {"error": {"status": 404, "detail": "الامتحان غير موجود."}},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        attempt = start_attempt(
-            assessment=assessment, student=request.user, tenant=request.tenant
-        )
+        attempt = start_attempt(assessment=assessment, student=request.user, tenant=request.tenant)
         return Response(
             AttemptDetailSerializer(attempt, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -140,11 +134,15 @@ class AttemptViewSet(TenantScopedViewSet):
             return False
         if not question.bank.subject_id or not question.bank.grade_id:
             return False
-        return TeacherAssignment.objects.for_tenant(self.request.tenant).filter(
-            teacher=teacher,
-            course__subject_id=question.bank.subject_id,
-            course__grade_id=question.bank.grade_id,
-        ).exists()
+        return (
+            TeacherAssignment.objects.for_tenant(self.request.tenant)
+            .filter(
+                teacher=teacher,
+                course__subject_id=question.bank.subject_id,
+                course__grade_id=question.bank.grade_id,
+            )
+            .exists()
+        )
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -185,9 +183,7 @@ class AttemptViewSet(TenantScopedViewSet):
             text_answer=serializer.validated_data.get("text_answer", ""),
         )
         attempt.refresh_from_db()
-        return Response(
-            AttemptDetailSerializer(attempt, context={"request": request}).data
-        )
+        return Response(AttemptDetailSerializer(attempt, context={"request": request}).data)
 
     @action(detail=True, methods=["get"])
     def result(self, request, pk=None):
@@ -229,22 +225,15 @@ class AttemptViewSet(TenantScopedViewSet):
         serializer = AttemptEventInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         event_type = serializer.validated_data["event_type"]
-        record_attempt_event(
-            attempt, event_type, serializer.validated_data.get("metadata", {})
-        )
+        record_attempt_event(attempt, event_type, serializer.validated_data.get("metadata", {}))
 
         auto_submit_after = int(
-            attempt.tenant.get_policy("exam_policy").get(
-                "auto_submit_after_tab_switches", 0
-            )
-            or 0
+            attempt.tenant.get_policy("exam_policy").get("auto_submit_after_tab_switches", 0) or 0
         )
         if auto_submit_after > 0 and event_type == "TAB_HIDDEN":
             from .models import AttemptEvent
 
-            count = AttemptEvent.objects.filter(
-                attempt=attempt, event_type="TAB_HIDDEN"
-            ).count()
+            count = AttemptEvent.objects.filter(attempt=attempt, event_type="TAB_HIDDEN").count()
             if count >= auto_submit_after:
                 submit_attempt(attempt, expired_notification=False)
                 attempt.refresh_from_db()
@@ -265,17 +254,13 @@ class AttemptViewSet(TenantScopedViewSet):
     )
     def grading(self, request, pk=None):
         from .models import AttemptEvent
-        from .serializers import AttemptEventSerializer
         from .services import compute_suspicion
 
         attempt = self.get_object()
-        all_answers = attempt.answers.select_related(
-            "question", "chosen_option"
-        ).all()
+        all_answers = attempt.answers.select_related("question", "chosen_option").all()
 
         essay_answers = [
-            a for a in all_answers
-            if a.question.question_type == Question.QuestionType.ESSAY
+            a for a in all_answers if a.question.question_type == Question.QuestionType.ESSAY
         ]
         pending_essays = sum(1 for a in essay_answers if a.awarded_points is None)
 
@@ -285,9 +270,7 @@ class AttemptViewSet(TenantScopedViewSet):
         return Response(
             {
                 "attempt": AttemptResultSerializer(attempt).data,
-                "essay_answers": EssayAnswerForGradingSerializer(
-                    essay_answers, many=True
-                ).data,
+                "essay_answers": EssayAnswerForGradingSerializer(essay_answers, many=True).data,
                 "pending_essays": pending_essays,
                 "events": AttemptEventSerializer(events, many=True).data,
                 "suspicion": suspicion,
@@ -319,9 +302,7 @@ class AttemptViewSet(TenantScopedViewSet):
                 )
             if attempt.assessment.created_by_id != request.user.id:
                 if not self._teacher_can_grade_question(request.user, question):
-                    raise PermissionDenied(
-                        "لا يمكنك تصحيح سؤال خارج نطاق موادك."
-                    )
+                    raise PermissionDenied("لا يمكنك تصحيح سؤال خارج نطاق موادك.")
 
         grade_essay_answer(
             attempt=attempt,
@@ -462,8 +443,9 @@ class AttemptViewSet(TenantScopedViewSet):
         Both fixed. Behavior now matches the frontend's
         `bulkGradeAttempts()` contract: per-item results, no rollback.
         """
-        from .services import bulk_grade_and_finalize
         from apps.billing.services import require_feature
+
+        from .services import bulk_grade_and_finalize
 
         require_feature(request.tenant, "bulk_grading")
 
@@ -489,16 +471,10 @@ class AttemptViewSet(TenantScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        requested_ids = [
-            str(a.get("attempt_id"))
-            for a in attempts_data
-            if a.get("attempt_id")
-        ]
+        requested_ids = [str(a.get("attempt_id")) for a in attempts_data if a.get("attempt_id")]
         visible_ids = set(
             str(i)
-            for i in self.get_queryset()
-            .filter(id__in=requested_ids)
-            .values_list("id", flat=True)
+            for i in self.get_queryset().filter(id__in=requested_ids).values_list("id", flat=True)
         )
 
         results = []
@@ -538,4 +514,3 @@ class AttemptViewSet(TenantScopedViewSet):
         )
 
         return Response({"results": results}, status=status.HTTP_200_OK)
-    

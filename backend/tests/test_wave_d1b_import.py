@@ -5,13 +5,10 @@ import io
 import pytest
 
 from apps.academics.models import (
-    AcademicYear,
     Chapter,
     Course,
-    Grade,
     Lesson,
     Stage,
-    Subject,
 )
 
 from .conftest import enable_pro_features, login_as
@@ -24,10 +21,7 @@ from .factories import (
 pytestmark = pytest.mark.django_db
 
 
-HEADER = (
-    "academic_year,stage,grade,subject,course,chapter,chapter_order,"
-    "lesson,lesson_order\n"
-)
+HEADER = "academic_year,stage,grade,subject,course,chapter,chapter_order,lesson,lesson_order\n"
 
 
 def _csv(*rows: str) -> bytes:
@@ -101,9 +95,7 @@ def test_dry_run_reports_missing_year_as_error(api_client):
     owner = UserFactory(tenant=tenant, role="OWNER")
     client = login_as(api_client, owner)
 
-    csv = _csv(
-        "9999/8888,الثانوية,أولى ثانوي,رياضيات,رياضيات,الجبر,1,المعادلات,1"
-    )
+    csv = _csv("9999/8888,الثانوية,أولى ثانوي,رياضيات,رياضيات,الجبر,1,المعادلات,1")
     r = _upload(client, csv, dry_run=True)
     assert r.status_code == 200
     assert r.data["summary"]["errors"] == 1

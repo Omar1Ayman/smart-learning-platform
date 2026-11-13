@@ -1,12 +1,9 @@
-
 """Wave 13 — password reset flow. Uses Django's console email backend
 (configured in settings) so the reset link is captured via
 mail.outbox in tests."""
 
 import pytest
 from django.core import mail
-
-from apps.accounts.models import User
 
 from .factories import UserFactory
 
@@ -26,9 +23,7 @@ def test_request_sends_email_when_user_exists(api_client):
     user = UserFactory(email="reset@example.test")
     mail.outbox = []
 
-    resp = api_client.post(
-        "/api/v1/auth/password-reset/", {"email": user.email}, format="json"
-    )
+    resp = api_client.post("/api/v1/auth/password-reset/", {"email": user.email}, format="json")
     assert resp.status_code == 200
     assert len(mail.outbox) == 1
     assert "إعادة تعيين" in mail.outbox[0].subject
