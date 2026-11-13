@@ -1,14 +1,6 @@
+# F-13 FIX (Milestone 0): previously this file listed every dev dep again,
+# which drifted out of sync with pyproject.toml (was missing ruff + mypy,
+# and would have been missing django-stubs after the F-09 fix). Now it
+# just delegates — one source of truth for dev tooling.
 -r base.txt
-black==24.10.0
-click==8.5.0
-factory_boy==3.3.3
-Faker==40.39.0
-flake8==7.3.0
-mccabe==0.7.0
-pathspec==1.1.1
-Pillow==12.3.0
-platformdirs==4.11.11
-pycodestyle==2.14.0
-pyflakes==3.4.0
-pytest==8.4.2
-pytest-django==4.14.0
+-e .[dev]

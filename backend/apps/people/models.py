@@ -18,7 +18,7 @@ academic structure built in Phase 4 mean something for actual people:
 
 from django.db import models
 
-from apps.academics.models import AcademicYear, Course, Group
+from apps.academics.models import AcademicYear, Course, Group, Term
 from apps.common.models import TenantScopedModel
 
 
@@ -47,9 +47,26 @@ class TeacherAssignment(TenantScopedModel):
         return f"{self.teacher.email} — {self.course.name}"
 
 
+
 class Enrollment(TenantScopedModel):
+    """A student's placement in one Group for one AcademicYear (or one
+    Term within it), never overwritten across years (spec #23).
+
+    Wave 31 — `term` is OPTIONAL:
+    - NULL = enrolled for the whole year (default, ~90% of cases).
+    - Set  = enrolled only for that term, allowing mid-year group
+             transfers (student was in group A term 1, group B term 2).
+
+    The two partial unique constraints together reproduce "one enrollment
+    per student per year" when term is null, and "one enrollment per
+    student per year-term" when term is set. This is the PG-version-safe
+    equivalent of `nulls_distinct=False` (which would require PG 15+).
+    """
+
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Active"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
         INACTIVE = "INACTIVE", "Inactive"
         SUSPENDED = "SUSPENDED", "Suspended"
         TRANSFERRED = "TRANSFERRED", "Transferred"
@@ -63,23 +80,46 @@ class Enrollment(TenantScopedModel):
         limit_choices_to={"role": "STUDENT"},
     )
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="enrollments")
-    # Denormalized from group.academic_year, set once at creation and
-    # never client-writable (see EnrollmentSerializer) — kept as its own
-    # column purely so "one enrollment per student per year" can be a
-    # real DB constraint; Django can't express a uniqueness constraint
-    # across a related model's field.
-    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, related_name="enrollments")
+    academic_year = models.ForeignKey(
+        AcademicYear, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    # Wave 31 — optional term scoping for mid-year transfers.
+    term = models.ForeignKey(
+        Term,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="enrollments",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     enrolled_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "people_enrollment"
         constraints = [
+            # One enrollment per student per year when term is null.
             models.UniqueConstraint(
-                fields=["student", "academic_year"], name="uniq_enrollment_per_student_per_year"
+                fields=["student", "academic_year"],
+                condition=models.Q(term__isnull=True),
+                name="uniq_enrollment_per_student_year_no_term",
+            ),
+            # One enrollment per student per (year, term) when term is set.
+            models.UniqueConstraint(
+                fields=["student", "academic_year", "term"],
+                condition=models.Q(term__isnull=False),
+                name="uniq_enrollment_per_student_year_term",
             ),
         ]
         ordering = ["-academic_year", "group"]
 
     def __str__(self):
-        return f"{self.student.email} — {self.group.name} ({self.academic_year.name})"
+        suffix = f" · {self.term.name}" if self.term_id else ""
+        return f"{self.student.email} — {self.group.name} ({self.academic_year.name}{suffix})"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.term_id and self.term.academic_year_id != self.academic_year_id:
+            raise ValidationError(
+                {"term": "الترم المختار لا ينتمي للسنة الدراسية المحددة."}
+            )

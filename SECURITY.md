@@ -81,6 +81,10 @@ environment variables only (`.env`, gitignored) — `.env.example` documents
 every variable without real values. **This must be rotated before any real
 deployment**; the checked-in example is a development placeholder.
 
+Administrators do not set or send users' passwords. New accounts receive a
+single-use, three-day email invitation to choose their own password; if the
+invitation cannot be delivered, account creation is rolled back.
+
 ## 4. Error handling
 
 `apps/common/exceptions.py` wraps every DRF error response into a
@@ -136,3 +140,44 @@ design in `ARCHITECTURE.md` §8.
   local/dev configuration; production configuration (`prod.py`, real
   secrets, TLS, locked-down `CORS_ALLOWED_ORIGINS`) is written but unused
   until Phase 14.
+
+## Dependency Audit — Deferred Advisories
+
+_Last reviewed: 2026-11-04 (Next.js 16.4.5, React 18.x)_
+
+### `zod` < 4.6.6 — HIGH (GHSA-mrhx-c7xc-m3w5)
+**Deferred because:** Zod runs client-side only. An attacker who can
+feed adversarial input to a Zod validator already has JS execution in
+the victim's browser — the memory-exhaustion vector is redundant. No
+schema in `lib/validation/schemas.ts` uses `z.array().max()` on a
+user-controlled collection at scale (largest is MCQ `options`, capped
+at 2–10 by UI). Fixing requires zod@4 — breaking migration not
+justified by the theoretical risk profile.
+
+**Revisit when:** Zod 3.x gets a security patch, or a planned zod@4
+migration happens for other reasons.
+
+### `minimatch` < 11.0.1 — MODERATE (GHSA-g3hv-75wg-m249)
+**Deferred because:** Build-time only. Pulled transitively by
+`eslint` + `@typescript-eslint/*`, never bundled to the browser
+(`npm ls --omit=dev` confirms). ESLint patterns in this project are
+all hard-coded — no untrusted input reaches glob-matching.
+
+**Revisit when:** ESLint 9.x ships a release with updated minimatch
+transitively. `--force` path would downgrade ESLint to 4.0.0 — worse
+than the advisory.
+
+### Patched — do NOT re-defer if reappeared
+- `follow-redirects` (GHSA-mrwp-f3q8-3g9p) — patched 2026-11-04
+- `postcss-selector-parser` (GHSA-rj75-hqrm-r3gf) — patched 2026-11-04
+- `next` critical RCE chain (GHSA-2464, GHSA-p3m5, GHSA-673q) — patched
+  2026-11-04 by bumping 16.3.8 → 16.4.5
+
+If any reappears in a future audit, something has regressed.
+
+## Planned Upgrade — React 18 → 19
+Next.js 16.4.5 emits a deprecation warning: React 18 support is
+removed in Next.js 17. Non-blocking today. Planned for **Wave 6**
+(post-Phase 9) — the upgrade involves TypeScript type changes and
+hook signature updates that require a full regression pass. Not to
+be done opportunistically mid-feature-work.

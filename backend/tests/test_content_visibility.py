@@ -19,6 +19,7 @@ from .factories import (
     TenantFactory,
     TermFactory,
     UserFactory,
+    Enrollment
 )
 
 pytestmark = pytest.mark.django_db
@@ -126,3 +127,22 @@ def test_admin_cannot_read_another_tenants_content(api_client):
     client = login_as(api_client, admin_a)
     resp = client.get(f"/api/v1/content/{other_content.id}/")
     assert resp.status_code in (403, 404)
+
+
+# أضف لـ tests/test_content_visibility.py:
+def test_suspended_student_sees_no_content(api_client):
+    tenant = TenantFactory()
+    year = AcademicYearFactory(tenant=tenant)
+    group = GroupFactory(tenant=tenant, academic_year=year)
+    content = Content.objects.create(
+        tenant=tenant, title="Biology", content_type="TEXT",
+        text_body="...", grade=group.grade, is_published=True,
+    )
+    student = UserFactory(tenant=tenant, role="STUDENT")
+    Enrollment.objects.create(
+        tenant=tenant, student=student, group=group,
+        academic_year=year, status=Enrollment.Status.SUSPENDED,  # ← SUSPENDED
+    )
+    client = login_as(api_client, student)
+    r = client.get("/api/v1/content/")
+    assert r.data["count"] == 0  # كان يعرض الـ content قبل الإصلاح

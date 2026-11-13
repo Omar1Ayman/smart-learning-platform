@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إشعار غياب</title>
+</head>
+<body style="margin: 0; padding: 24px; background: #f5f6fa; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: rtl;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+
+    <!-- Header -->
+    <div style="background: {% if consecutive %}#dc2626{% else %}#2B3A67{% endif %}; color: #ffffff; padding: 28px 24px; text-align: center;">
+      <h1 style="margin: 0; font-size: 22px; font-weight: bold;">
+        {% if consecutive %}⚠️ تنبيه: غياب متكرر{% else %}إشعار غياب{% endif %}
+      </h1>
+      <p style="margin: 6px 0 0; opacity: 0.85; font-size: 13px;">{{ tenant_name }}</p>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 28px 24px; color: #111827; font-size: 15px; line-height: 1.7;">
+      <p style="margin: 0 0 16px;">عزيزي/عزيزتي <strong>{{ parent_name }}</strong>،</p>
+
+      {% if consecutive %}
+        <p style="margin: 0 0 16px;">
+          نود إعلامكم بأن الطالب/الطالبة <strong>{{ student_name }}</strong>
+          تغيّب عن <strong>{{ consecutive }} حصص متتالية</strong>.
+          نرجو التواصل مع المؤسسة لمتابعة الأمر.
+        </p>
+      {% else %}
+        <p style="margin: 0 0 16px;">
+          نود إعلامكم بأن الطالب/الطالبة <strong>{{ student_name }}</strong>
+          لم يحضر الحصة التالية:
+        </p>
+      {% endif %}
+
+      <!-- Details box -->
+      <div style="background: {% if consecutive %}#fef2f2{% else %}#f9fafb{% endif %}; border-right: 4px solid {% if consecutive %}#dc2626{% else %}#2B3A67{% endif %}; padding: 16px 18px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 6px 0; font-size: 14px;">
+          <span style="color: #6b7280;">التاريخ: </span>
+          <strong>{{ session_date }}</strong>
+        </p>
+        <p style="margin: 6px 0; font-size: 14px;">
+          <span style="color: #6b7280;">الوقت: </span>
+          <strong>{{ session_start }} - {{ session_end }}</strong>
+        </p>
+        <p style="margin: 6px 0; font-size: 14px;">
+          <span style="color: #6b7280;">المجموعة: </span>
+          <strong>{{ group_name }}</strong>
+        </p>
+        {% if teacher_email %}
+        <p style="margin: 6px 0; font-size: 14px;">
+          <span style="color: #6b7280;">المعلم: </span>
+          <strong>{{ teacher_email }}</strong>
+        </p>
+        {% endif %}
+      </div>
+
+      {% if consecutive %}
+      <div style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 14px 16px; border-radius: 8px; margin: 20px 0; font-size: 14px;">
+        ⚠️ الغياب المتكرر يؤثر على التحصيل الدراسي. تواصل معنا في أقرب وقت لمناقشة الأمر.
+      </div>
+      {% endif %}
+
+      <p style="margin: 16px 0 0;">
+        لو كان الغياب بعذر، نرجو إبلاغ المعلم أو إدارة المؤسسة لتصحيح السجل.
+      </p>
+
+      {% if contact_email %}
+      <p style="margin: 24px 0 0; font-size: 13px; color: #6b7280;">
+        للتواصل:
+        <a href="mailto:{{ contact_email }}" style="color: #2B3A67; text-decoration: none; font-weight: 600;">
+          {{ contact_email }}
+        </a>
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 16px 24px; text-align: center; font-size: 12px; color: #6b7280;">
+      هذا إشعار تلقائي من <strong>{{ tenant_name }}</strong> — لا ترد على هذا البريد مباشرة.
+    </div>
+  </div>
+</body>
+</html>

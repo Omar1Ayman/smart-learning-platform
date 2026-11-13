@@ -66,6 +66,34 @@ request field — it's always the caller's own tenant.
 `Course` deliberately has no `teacher` field — see PROJECT_MEMORY.md §14
 for why that's TeacherAssignment's job, not Course's.
 
+Academic-year writes follow the year attached to the target record (or its
+group/course), not just the currently selected year: `DRAFT` permits setup
+of terms, groups, and courses; educational writes wait until `ACTIVE`;
+`CLOSING` rejects new enrollments; and `ARCHIVED` records are read-only.
+These checks apply to create, update, delete, bulk-delete, and mutating
+detail actions on year-aware endpoints.
+
+### Academic-year rollover
+
+- `POST /api/v1/academic-years/<source-id>/prepare-next/` creates a `DRAFT`
+  target year and optionally copies terms, groups, and year-level courses.
+  The first request returns `201`; retries for the same source return the
+  existing target with `200`, so a lost response cannot create another year.
+  A source year can have only one rollover target.
+- `POST /api/v1/academic-years/<target-id>/activate/` activates the prepared
+  year and moves the previous active year to `CLOSING`.
+- `POST /api/v1/academic-years/<source-id>/promote-students/` requires an
+  active target year and processes all submitted decisions atomically.
+  Body: `{"target_year": "<uuid>", "items": [...]}`. Repeating a completed
+  batch is rejected because its source enrollments are no longer active; it
+  cannot create duplicate target enrollments.
+- `POST /api/v1/academic-years/<source-id>/archive/` archives the source
+  after the remaining close steps are complete.
+
+The browser wizard restores its step, prepared target, and student decisions
+on the same user account and browser. The server-side retry protections still
+apply if browser storage is unavailable or the workflow is resumed elsewhere.
+
 ## People
 
 ### `/api/v1/teacher-assignments/`
@@ -180,6 +208,31 @@ themselves — **regardless of role**, not just for TEACHER (see
 PROJECT_MEMORY.md's Phase 7 decisions for why this is stricter than the
 spec's literal wording). `reject` accepts an optional `review_note` in
 the body.
+
+## Billing and platform administration
+
+### Public and tenant billing endpoints
+
+- `GET /api/v1/billing/plans/` returns active, public plans.
+- Authenticated tenant members can read `GET /api/v1/billing/me/`,
+  `/api/v1/billing/usage/`, and `/api/v1/billing/features/`.
+- Plan assignments and prices are managed manually; these endpoints do not
+  process payments.
+
+### Platform-admin billing endpoints
+
+All `/api/v1/platform/billing/...` endpoints require a platform-admin account;
+tenant owners and admins cannot use them.
+
+- `GET/POST /api/v1/platform/billing/plans/` lists or creates plans.
+- `GET/PATCH/PUT /api/v1/platform/billing/plans/<id>/` reads or updates a plan.
+  Plan keys are immutable after creation; plans cannot be deleted.
+- `GET /api/v1/platform/billing/tenants/` lists organizations and their
+  subscription state without exposing educational records.
+- `PATCH /api/v1/platform/billing/tenants/<id>/subscription/` assigns an
+  active plan and status. Optional `trial_days`, `feature_overrides`, and
+  `limit_overrides` support time-bounded trials and explicit tenant exceptions.
+  Changes are recorded in the platform audit log and subscription history.
 
 ## Planned (not built yet — see PROJECT_MEMORY.md roadmap)
 

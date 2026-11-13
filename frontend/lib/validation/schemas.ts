@@ -50,8 +50,11 @@ export type GradeFormValues = z.infer<typeof gradeSchema>;
 export const courseSchema = z.object({
   subject: z.string().min(1, "اختر المادة"),
   grade: z.string().min(1, "اختر الصف"),
-  name: z.string().min(1, "اسم الكورس مطلوب").max(150),
+  name: z.string().min(1, "اسم المادة الدراسية مطلوب").max(150),
   description: z.string().optional(),
+  // Phase 1.4: السنة إجبارية
+  academic_year: z.string().min(1, "السنة الدراسية مطلوبة"),
+  term: z.string().optional().or(z.literal("")),
 });
 export type CourseFormValues = z.infer<typeof courseSchema>;
 
@@ -65,8 +68,7 @@ export type GroupFormValues = z.infer<typeof groupSchema>;
 
 export const userSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
-  password: z.string().min(10, "10 أحرف على الأقل"),
-  role: z.enum(["ADMIN", "TEACHER", "STUDENT"], { errorMap: () => ({ message: "اختر دورًا" }) }),
+  role: z.enum(["ADMIN", "TEACHER", "STUDENT"], { error: "اختر دورًا" }),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
 });
@@ -82,9 +84,9 @@ export type TeacherAssignmentFormValues = z.infer<typeof teacherAssignmentSchema
 export const enrollmentSchema = z.object({
   student: z.string().min(1, "اختر الطالب"),
   group: z.string().min(1, "اختر المجموعة"),
+  term: z.string().optional().or(z.literal("")),
 });
 export type EnrollmentFormValues = z.infer<typeof enrollmentSchema>;
-
 export const contentSchema = z
   .object({
     title: z.string().min(1, "العنوان مطلوب").max(255),
@@ -101,7 +103,7 @@ export const contentSchema = z
         "LESSON_EXPLANATION",
         "CHAPTER_RESOURCE",
       ],
-      { errorMap: () => ({ message: "اختر نوع المحتوى" }) }
+      { error: "اختر نوع المحتوى" }
     ),
     description: z.string().optional(),
     external_url: z.string().optional(),
@@ -140,25 +142,33 @@ const optionSchema = z.object({
   is_correct: z.boolean(),
 });
 
+
+
 export const questionSchema = z
   .object({
     bank: z.string().min(1, "اختر بنك الأسئلة"),
     text: z.string().min(1, "نص السؤال مطلوب"),
     question_type: z.enum(["MCQ", "TRUE_FALSE", "SHORT_ANSWER", "ESSAY"], {
-      errorMap: () => ({ message: "اختر نوع السؤال" }),
+      error: "اختر نوع السؤال",
     }),
     difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).default("MEDIUM"),
     topic: z.string().optional(),
     points: z.coerce.number().positive("يجب أن تكون النقاط أكبر من صفر").default(1),
-    accepted_answers_text: z.string().optional(), // comma-separated, split before submit
+    accepted_answers_text: z.string().optional(),
     options: z.array(optionSchema).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.question_type === "MCQ" || data.question_type === "TRUE_FALSE") {
       const options = data.options ?? [];
+
       if (options.length < 2) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "مطلوب اختياران على الأقل", path: ["options"] });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "مطلوب اختياران على الأقل",
+          path: ["options"],
+        });
       }
+
       const correctCount = options.filter((o) => o.is_correct).length;
       if (correctCount !== 1) {
         ctx.addIssue({
@@ -167,8 +177,30 @@ export const questionSchema = z
           path: ["options"],
         });
       }
+
+      // TRUE_FALSE — texts are fixed. Which of the two is correct is
+      // legitimately either one, but the TEXTS can never change.
+      if (data.question_type === "TRUE_FALSE") {
+        const texts = options.map((o) => o.text.trim());
+        const uniqueTexts = new Set(texts);
+        const isCanonical =
+          uniqueTexts.size === 2 &&
+          uniqueTexts.has("صح") &&
+          uniqueTexts.has("خطأ");
+        if (!isCanonical) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              "سؤال صح/خطأ يجب أن يكون خياراه بالضبط: 'صح' و 'خطأ' — النص ثابت، والإجابة الصحيحة هي ما تختاره.",
+            path: ["options"],
+          });
+        }
+      }
     }
-    if (data.question_type === "SHORT_ANSWER" && !data.accepted_answers_text?.trim()) {
+    if (
+      data.question_type === "SHORT_ANSWER" &&
+      !data.accepted_answers_text?.trim()
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "أضف إجابة واحدة على الأقل",
@@ -177,7 +209,6 @@ export const questionSchema = z
     }
   });
 export type QuestionFormValues = z.infer<typeof questionSchema>;
-
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),

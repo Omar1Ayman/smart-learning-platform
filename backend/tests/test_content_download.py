@@ -36,6 +36,7 @@ def test_student_outside_eligibility_gets_404_on_download(api_client):
     owner = UserFactory(tenant=tenant, role="OWNER")
     client = login_as(api_client, owner)
     group = GroupFactory(tenant=tenant)
+    group.academic_year.activate()
     content_id = _create_content(client, group=str(group.id))
 
     other_group = GroupFactory(tenant=tenant, grade=group.grade)
@@ -54,6 +55,7 @@ def test_eligible_student_can_download(api_client):
     owner = UserFactory(tenant=tenant, role="OWNER")
     client = login_as(api_client, owner)
     group = GroupFactory(tenant=tenant)
+    group.academic_year.activate()
     content_id = _create_content(client, group=str(group.id))
 
     student = UserFactory(tenant=tenant, role="STUDENT")

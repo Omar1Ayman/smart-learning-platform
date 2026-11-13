@@ -7,6 +7,7 @@ instead of copy-pasting the __init__ override.
 
 from rest_framework import serializers
 
+from .warnings import WarningSerializerMixin
 
 class TenantScopedRelationsMixin:
     """Mix into any serializers.ModelSerializer. `tenant_scoped_fields`
@@ -37,5 +38,9 @@ class TenantScopedRelationsMixin:
             self.fields[field_name].queryset = queryset
 
 
-class TenantScopedModelSerializer(TenantScopedRelationsMixin, serializers.ModelSerializer):
+
+
+class TenantScopedModelSerializer(
+    WarningSerializerMixin, TenantScopedRelationsMixin, serializers.ModelSerializer
+):
     pass

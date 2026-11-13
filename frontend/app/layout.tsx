@@ -1,24 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
+import { CommandPalette } from "@/components/ui/CommandPalette";
 import { Providers } from "./providers";
-
-// Two deliberately-chosen Arabic families (not the ubiquitous Cairo/Tajawal
-// defaults): a geometric Kufi for headings/display, a highly-legible sans
-// for body/UI. See ARCHITECTURE.md #6.
-const kufi = Noto_Kufi_Arabic({
-  subsets: ["arabic"],
-  weight: ["500", "700"],
-  variable: "--font-kufi",
-  display: "swap",
-});
-
-const plexArabic = IBM_Plex_Sans_Arabic({
-  subsets: ["arabic"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-arabic",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "منصة التعلم الذكية",
@@ -31,11 +14,39 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Runs synchronously in <head> before paint. Reads localStorage's `theme`
+ * and applies `.dark` class + `data-theme` attribute to <html>.
+ *
+ * suppressHydrationWarning on <html> tells React to ignore attribute
+ * mismatches on this element (the theme script intentionally adds
+ * `data-theme` before hydration).
+ */
+const THEME_SCRIPT = `
+(function(){
+  try {
+    var stored = localStorage.getItem('theme');
+    var sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var resolved = stored === 'dark' ? 'dark'
+      : stored === 'light' ? 'light'
+      : (sys ? 'dark' : 'light');
+    if (resolved === 'dark') document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', resolved);
+  } catch(e){}
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${kufi.variable} ${plexArabic.variable}`}>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <CommandPalette />
+        </Providers>
       </body>
     </html>
   );

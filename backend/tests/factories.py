@@ -1,10 +1,19 @@
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.academics.models import AcademicYear, Chapter, Course, Grade, Group, Stage, Subject, Term
+from apps.academics.models import (
+    AcademicYear,
+    Chapter,
+    Course,
+    Grade,
+    Group,
+    Stage,
+    Subject,
+    Term,
+)
 from apps.accounts.models import User
-from apps.people.models import Enrollment, TeacherAssignment
 from apps.assessments.models import Assessment
+from apps.people.models import Enrollment, TeacherAssignment
 from apps.questions.models import Question, QuestionBank
 from apps.tenants.models import Tenant
 
@@ -75,7 +84,13 @@ class CourseFactory(DjangoModelFactory):
     """subject is built explicitly against grade.tenant (not an
     independent SubFactory) so a plain CourseFactory() always produces
     internally-consistent tenant data — every FK actually belongs to the
-    same tenant, the way the real app enforces it."""
+    same tenant, the way the real app enforces it.
+
+    academic_year is required since migration 0007 (Phase 1.4). Derived
+    from the grade's tenant so a standalone CourseFactory() is always
+    valid. Callers who need a specific year should pass it explicitly:
+        CourseFactory(grade=g, academic_year=existing_year)
+    """
 
     class Meta:
         model = Course
@@ -83,6 +98,9 @@ class CourseFactory(DjangoModelFactory):
     grade = factory.SubFactory(GradeFactory)
     tenant = factory.SelfAttribute("grade.tenant")
     subject = factory.LazyAttribute(lambda o: SubjectFactory(tenant=o.grade.tenant))
+    academic_year = factory.LazyAttribute(
+        lambda o: AcademicYearFactory(tenant=o.grade.tenant)
+    )
     name = factory.Sequence(lambda n: f"Course {n}")
 
 
@@ -136,7 +154,9 @@ class GroupFactory(DjangoModelFactory):
 
     grade = factory.SubFactory(GradeFactory)
     tenant = factory.SelfAttribute("grade.tenant")
-    academic_year = factory.LazyAttribute(lambda o: AcademicYearFactory(tenant=o.grade.tenant))
+    academic_year = factory.LazyAttribute(
+        lambda o: AcademicYearFactory(tenant=o.grade.tenant)
+    )
     name = factory.Sequence(lambda n: f"Group {n}")
 
 
@@ -147,7 +167,9 @@ class TeacherAssignmentFactory(DjangoModelFactory):
 
     course = factory.SubFactory(CourseFactory)
     tenant = factory.SelfAttribute("course.tenant")
-    teacher = factory.LazyAttribute(lambda o: TeacherUserFactory(tenant=o.course.tenant))
+    teacher = factory.LazyAttribute(
+        lambda o: TeacherUserFactory(tenant=o.course.tenant)
+    )
 
 
 class EnrollmentFactory(DjangoModelFactory):
@@ -157,7 +179,9 @@ class EnrollmentFactory(DjangoModelFactory):
     group = factory.SubFactory(GroupFactory)
     tenant = factory.SelfAttribute("group.tenant")
     academic_year = factory.SelfAttribute("group.academic_year")
-    student = factory.LazyAttribute(lambda o: StudentUserFactory(tenant=o.group.tenant))
+    student = factory.LazyAttribute(
+        lambda o: StudentUserFactory(tenant=o.group.tenant)
+    )
 
 
 class TermFactory(DjangoModelFactory):
@@ -190,7 +214,9 @@ class QuestionFactory(DjangoModelFactory):
     text = factory.Sequence(lambda n: f"Question text {n}?")
     question_type = Question.QuestionType.SHORT_ANSWER
     accepted_answers = factory.LazyFunction(lambda: ["42"])
-    created_by = factory.LazyAttribute(lambda o: TeacherUserFactory(tenant=o.tenant))
+    created_by = factory.LazyAttribute(
+        lambda o: TeacherUserFactory(tenant=o.tenant)
+    )
 
     @factory.post_generation
     def approved(self, create, extracted, **kwargs):

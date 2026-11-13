@@ -1,13 +1,15 @@
-"""Separate from urls.py on purpose: these mount at /api/v1/ (alongside
-academics/people), not under /api/v1/auth/ — managing tenant members
-isn't an auth concern, it just happens to live in the accounts app
-because that's where the User model is."""
+"""Separate from urls.py on purpose: these mount at /api/v1/, not under
+/api/v1/auth/ — managing tenant members isn't an auth concern."""
 
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import UserViewSet
+from .views import StudentDetailView, TeacherDetailView, UserViewSet
 
 router = DefaultRouter()
 router.register("users", UserViewSet, basename="user")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("students/<uuid:user_id>/", StudentDetailView.as_view(), name="student-detail"),
+    path("teachers/<uuid:user_id>/", TeacherDetailView.as_view(), name="teacher-detail"),
+] + router.urls

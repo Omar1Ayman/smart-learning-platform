@@ -12,6 +12,7 @@ from apps.people.models import Enrollment, TeacherAssignment
 
 from .conftest import login_as
 from .factories import (
+    AcademicYearFactory,
     EnrollmentFactory,
     GroupFactory,
     StudentUserFactory,
@@ -24,6 +25,7 @@ pytestmark = pytest.mark.django_db
 
 def test_owner_can_enroll_student_and_academic_year_is_derived(api_client):
     group = GroupFactory()
+    group.academic_year.activate()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
     student = StudentUserFactory(tenant=group.tenant)
 
@@ -38,6 +40,7 @@ def test_owner_can_enroll_student_and_academic_year_is_derived(api_client):
 
 def test_duplicate_enrollment_same_student_same_year_is_rejected(api_client):
     group = GroupFactory()
+    group.academic_year.activate()
     owner = UserFactory(tenant=group.tenant, role="OWNER")
     student = StudentUserFactory(tenant=group.tenant)
     EnrollmentFactory(student=student, group=group, tenant=group.tenant, academic_year=group.academic_year)
@@ -52,6 +55,80 @@ def test_duplicate_enrollment_same_student_same_year_is_rejected(api_client):
         format="json",
     )
     assert resp.status_code == 400
+
+
+def test_enrollment_cannot_be_created_while_year_is_draft(api_client):
+    group = GroupFactory()
+    owner = UserFactory(tenant=group.tenant, role="OWNER")
+    student = StudentUserFactory(tenant=group.tenant)
+
+    client = login_as(api_client, owner)
+    resp = client.post(
+        "/api/v1/enrollments/",
+        {"student": str(student.id), "group": str(group.id)},
+        format="json",
+    )
+
+    assert resp.status_code == 403
+    assert "قيد الإعداد" in str(resp.data)
+
+
+def test_enrollment_cannot_be_created_while_year_is_closing(api_client):
+    group = GroupFactory()
+    group.academic_year.activate()
+    group.academic_year.close(archive=False)
+    owner = UserFactory(tenant=group.tenant, role="OWNER")
+    student = StudentUserFactory(tenant=group.tenant)
+
+    client = login_as(api_client, owner)
+    resp = client.post(
+        "/api/v1/enrollments/",
+        {"student": str(student.id), "group": str(group.id)},
+        format="json",
+    )
+
+    assert resp.status_code == 403
+    assert "قيد الإغلاق" in str(resp.data)
+
+
+def test_archived_group_year_is_locked_even_if_another_year_is_active(api_client):
+    group = GroupFactory()
+    archived_year = group.academic_year
+    archived_year.activate()
+    archived_year.close()
+    AcademicYearFactory(tenant=group.tenant).activate()
+    owner = UserFactory(tenant=group.tenant, role="OWNER")
+    student = StudentUserFactory(tenant=group.tenant)
+
+    client = login_as(api_client, owner)
+    resp = client.post(
+        "/api/v1/enrollments/",
+        {"student": str(student.id), "group": str(group.id)},
+        format="json",
+    )
+
+    assert resp.status_code == 403
+    assert "مؤرشفة" in str(resp.data)
+
+
+def test_archived_group_cannot_be_updated_when_another_year_is_active(api_client):
+    group = GroupFactory()
+    archived_year = group.academic_year
+    archived_year.activate()
+    archived_year.close()
+    AcademicYearFactory(tenant=group.tenant).activate()
+    owner = UserFactory(tenant=group.tenant, role="OWNER")
+
+    client = login_as(api_client, owner)
+    resp = client.patch(
+        f"/api/v1/groups/{group.id}/",
+        {"name": "Changed"},
+        format="json",
+    )
+
+    assert resp.status_code == 403
+    group.refresh_from_db()
+    assert group.name != "Changed"
 
 
 def test_student_sees_only_their_own_enrollment(api_client):
@@ -147,3 +224,21 @@ def test_teacher_cannot_directly_fetch_an_out_of_scope_enrollment_by_id(api_clie
     client = login_as(api_client, teacher)
     resp = client.get(f"/api/v1/enrollments/{out_of_scope.id}/")
     assert resp.status_code == 404  # not in this teacher's get_queryset() at all
+
+def test_enrollment_list_includes_readable_student_and_group(api_client):
+    """The Wave 15 serializer expansion: rather than returning bare UUIDs
+    the frontend has to resolve client-side, we include student_email,
+    student_name, group_name, academic_year_name as read-only fields."""
+    group = GroupFactory()
+    owner = UserFactory(tenant=group.tenant, role="OWNER")
+    student = StudentUserFactory(tenant=group.tenant, first_name="Ali", last_name="Hassan")
+    EnrollmentFactory(student=student, group=group, tenant=group.tenant, academic_year=group.academic_year)
+
+    client = login_as(api_client, owner)
+    resp = client.get("/api/v1/enrollments/")
+    assert resp.status_code == 200
+    row = resp.data["results"][0]
+    assert row["student_email"] == student.email
+    assert row["student_name"] == "Ali Hassan"
+    assert row["group_name"] == group.name
+    assert row["academic_year_name"] == group.academic_year.name

@@ -3,32 +3,38 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint ."
   },
   "dependencies": {
-    "next": "16.3.8",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "5.59.0",
-    "zustand": "4.5.5",
+    "@zxing/browser": "^0.2.1",
     "axios": "1.20.0",
-    "react-hook-form": "7.53.0",
-    "@hookform/resolvers": "3.9.0",
-    "zod": "3.23.8"
+    "lucide-react": "^1.70.0",
+    "next": "^16.4.5",
+    "qrcode.react": "^4.2.0",
+    "react": "18.3.1",
+    "react-barcode": "^1.6.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "^7.55.0",
+    "recharts": "^3.10.1",
+    "sonner": "^2.0.8",
+    "zod": "^4.6.6",
+    "zustand": "4.5.5"
   },
   "devDependencies": {
-    "typescript": "5.6.2",
+    "@eslint/eslintrc": "3.3.7",
     "@types/node": "20.16.10",
     "@types/react": "18.3.10",
     "@types/react-dom": "18.3.0",
-    "tailwindcss": "3.4.19",
-    "postcss": "8.5.28",
     "autoprefixer": "10.4.20",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.8",
-    "@eslint/eslintrc": "3.3.7"
+    "eslint-config-next": "^16.4.6",
+    "postcss": "8.5.28",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.6.2"
   }
 }

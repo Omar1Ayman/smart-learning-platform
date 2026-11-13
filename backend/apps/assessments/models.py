@@ -54,7 +54,32 @@ class Assessment(TenantScopedModel):
     max_attempts = models.PositiveSmallIntegerField(default=1)
     passing_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
-
+        # ---- Entry window policy (Phase A of the exam-window feature) ----
+    # Both are OPTIONAL. If both null/zero, an exam whose only schedule
+    # is starts_at/ends_at behaves exactly as before: the student can
+    # start any time in that window, and their session ends at whichever
+    # comes first — duration_minutes from start, or ends_at.
+    late_entry_minutes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Grace period after the effective opens_at during which a "
+            "student may still start. Null = no restriction (student can "
+            "start any time before closes_at). Set to 30 to enforce a "
+            "30-minute late-entry window."
+        ),
+    )
+    entry_cutoff_minutes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        default=0,
+        help_text=(
+            "A student must start with at least this many minutes still "
+            "remaining until the effective closes_at. 0 = can start any "
+            "time before closes_at. Set to 10 to require 10 minutes of "
+            "buffer before exam close."
+        ),
+    )
     # Randomization *settings* (spec #35) — the actual shuffling happens
     # when Phase 9 serves an attempt to a student, not here.
     randomize_question_order = models.BooleanField(default=False)
@@ -125,6 +150,20 @@ class AssessmentTarget(TenantScopedModel):
     )
     student = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.CASCADE, related_name="assessment_targets"
+    )
+        # Per-target window override — enables staggered groups (grade A
+    # opens 11:00, grade B opens 12:00) and per-student extra time
+    # (Ahmed gets until 12:15). If null, fall back to the parent
+    # Assessment's starts_at / ends_at.
+    opens_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Override: when THIS target's window opens. Null = use assessment.starts_at.",
+    )
+    closes_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Override: when THIS target's window closes. Null = use assessment.ends_at.",
     )
 
     class Meta:

@@ -171,3 +171,77 @@ def test_student_cannot_create_content(api_client):
         "/api/v1/content/", {"title": "Not allowed", "content_type": "TEXT", "text_body": "x"}, format="json"
     )
     assert resp.status_code == 403
+
+def test_student_cannot_bulk_delete_content(api_client):
+    """Wave D0b security — STUDENT must not reach bulk_delete at all."""
+    tenant = TenantFactory()
+    owner = UserFactory(tenant=tenant, role="OWNER")
+    student = UserFactory(tenant=tenant, role="STUDENT")
+    content = Content.objects.create(
+        tenant=tenant, title="Visible to students", content_type="TEXT",
+        text_body="...", is_published=True,
+    )
+
+    client = login_as(api_client, student)
+    r = client.post(
+        "/api/v1/content/bulk_delete/",
+        {"ids": [str(content.id)]},
+        format="json",
+    )
+    assert r.status_code == 403
+    assert Content.objects.filter(id=content.id).exists()
+
+
+def test_teacher_bulk_delete_only_own_content_by_default(api_client):
+    """A TEACHER cannot bulk-delete a colleague's content when the
+    tenant policy is off, even if the endpoint is reachable."""
+    from .factories import TeacherUserFactory
+
+    tenant = TenantFactory()
+    teacher_a = TeacherUserFactory(tenant=tenant)
+    teacher_b = TeacherUserFactory(tenant=tenant)
+
+    own = Content.objects.create(
+        tenant=tenant, title="Mine", content_type="TEXT",
+        text_body="...", created_by=teacher_a,
+    )
+    other = Content.objects.create(
+        tenant=tenant, title="Colleague's", content_type="TEXT",
+        text_body="...", created_by=teacher_b,
+    )
+
+    client = login_as(api_client, teacher_a)
+    r = client.post(
+        "/api/v1/content/bulk_delete/",
+        {"ids": [str(own.id), str(other.id)]},
+        format="json",
+    )
+    assert r.status_code == 403
+    # BOTH survive — no partial commit.
+    assert Content.objects.filter(id=own.id).exists()
+    assert Content.objects.filter(id=other.id).exists()
+
+
+def test_teacher_bulk_delete_own_content_succeeds(api_client):
+    from .factories import TeacherUserFactory
+
+    tenant = TenantFactory()
+    teacher = TeacherUserFactory(tenant=tenant)
+    c1 = Content.objects.create(
+        tenant=tenant, title="One", content_type="TEXT",
+        text_body="...", created_by=teacher,
+    )
+    c2 = Content.objects.create(
+        tenant=tenant, title="Two", content_type="TEXT",
+        text_body="...", created_by=teacher,
+    )
+
+    client = login_as(api_client, teacher)
+    r = client.post(
+        "/api/v1/content/bulk_delete/",
+        {"ids": [str(c1.id), str(c2.id)]},
+        format="json",
+    )
+    assert r.status_code == 200
+    assert r.data["deleted"] == sorted([str(c1.id), str(c2.id)])
+    assert not Content.objects.filter(id__in=[c1.id, c2.id]).exists()

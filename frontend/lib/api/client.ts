@@ -16,19 +16,41 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-let refreshPromise: Promise<string | null> | null = null;
+interface RefreshResult {
+  access: string;
+  sessionId: string | null;
+}
 
-async function refreshAccessToken(): Promise<string | null> {
+let refreshPromise: Promise<RefreshResult | null> | null = null;
+
+async function refreshAccessToken(): Promise<RefreshResult | null> {
   try {
-    const { data } = await axios.post<{ access: string }>(
+    const { data } = await axios.post<{ access: string; session_id?: string }>(
       `${API_BASE_URL}/auth/refresh/`,
       {},
       { withCredentials: true }
     );
-    return data.access;
-  } catch {
+    return { access: data.access, sessionId: data.session_id ?? null };
+  } catch (err) {
+    // DEBUG: log so the user can see WHY refresh failed in dev.
+    if (process.env.NODE_ENV === "development") {
+      console.warn(
+        "[auth] refresh failed:",
+        (err as AxiosError)?.response?.status,
+        (err as AxiosError)?.response?.data
+      );
+    }
     return null;
   }
+}
+
+function getRefreshedToken(): Promise<RefreshResult | null> {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
@@ -39,19 +61,20 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as RetryableConfig | undefined;
-    const isAuthEndpoint = original?.url?.includes("/auth/login") || original?.url?.includes("/auth/refresh");
+    const isAuthEndpoint =
+      original?.url?.includes("/auth/login") || original?.url?.includes("/auth/refresh");
 
     if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
       original._retried = true;
 
-      // Coalesce concurrent 401s into a single refresh call.
-      refreshPromise = refreshPromise ?? refreshAccessToken();
-      const newAccessToken = await refreshPromise;
-      refreshPromise = null;
+      const refreshed = await getRefreshedToken();
 
-      if (newAccessToken) {
-        useAuthStore.setState({ accessToken: newAccessToken });
-        original.headers.Authorization = `Bearer ${newAccessToken}`;
+      if (refreshed) {
+        useAuthStore.setState({
+          accessToken: refreshed.access,
+          ...(refreshed.sessionId ? { sessionId: refreshed.sessionId } : {}),
+        });
+        original.headers.Authorization = `Bearer ${refreshed.access}`;
         return apiClient(original);
       }
 
@@ -62,20 +85,59 @@ apiClient.interceptors.response.use(
   }
 );
 
-/** Called once on app load: tries to silently re-establish a session from
- * the httpOnly refresh cookie, so a page reload doesn't force a re-login. */
+/**
+ * Called once on app load: tries to silently re-establish a session from
+ * the httpOnly refresh cookie.
+ *
+ * FIX (post-login bounce): this function used to call clearAuth()
+ * whenever the refresh failed, no matter what. That meant that in the
+ * brief window right after a successful login — when status was
+ * "authenticated" and a token existed in memory — a failing refresh
+ * (transient network hiccup, cookie not yet fully applied, SameSite
+ * edge case) would wipe the perfectly valid session and send the user
+ * back to /login.
+ *
+ * Now: only clearAuth() if we have NO token at all. If we still hold
+ * an access token in memory, keep the session alive; the 401
+ * interceptor will retry refresh later if/when needed.
+ */
 export async function bootstrapAuth() {
-  useAuthStore.getState().setStatus("checking");
-  const token = await refreshAccessToken();
-  if (!token) {
-    useAuthStore.getState().clearAuth();
+  // Preserve existing state — don't blow away a valid session that was
+  // just set by the login page's setAuth().
+  const before = useAuthStore.getState();
+  if (before.status === "authenticated" && before.accessToken) {
     return;
   }
-  useAuthStore.setState({ accessToken: token });
+
+  useAuthStore.getState().setStatus("checking");
+
+  const refreshed = await getRefreshedToken();
+
+  if (!refreshed) {
+    // No token from refresh. Only clear if we truly have nothing.
+    const current = useAuthStore.getState();
+    if (!current.accessToken) {
+      useAuthStore.getState().clearAuth();
+    } else {
+      // We have a token in memory; keep the session. The 401 interceptor
+      // will retry refresh when it actually needs to.
+      useAuthStore.getState().setStatus("authenticated");
+    }
+    return;
+  }
+
+  useAuthStore.setState({
+    accessToken: refreshed.access,
+    ...(refreshed.sessionId ? { sessionId: refreshed.sessionId } : {}),
+  });
+
   try {
     const { data } = await apiClient.get("/auth/me/");
-    useAuthStore.getState().setAuth(token, data);
-  } catch {
+    useAuthStore.getState().setAuth(refreshed.access, data, refreshed.sessionId);
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[auth] /auth/me/ failed after refresh:", err);
+    }
     useAuthStore.getState().clearAuth();
   }
 }

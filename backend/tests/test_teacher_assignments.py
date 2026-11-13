@@ -11,6 +11,7 @@ pytestmark = pytest.mark.django_db
 
 def test_owner_can_assign_teacher_to_course(api_client):
     course = CourseFactory()
+    course.academic_year.activate()
     owner = UserFactory(tenant=course.tenant, role="OWNER")
     teacher = TeacherUserFactory(tenant=course.tenant)
 
